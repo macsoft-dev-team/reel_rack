@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosConfig";
 import ReusableTable from "../../component/ReusableTable";
-import TitleHead from "../../component/layout/TitleHead";
 import { Trash2, X, Eye, Edit, Plus, Search, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -375,17 +374,13 @@ export default function Picklist() {
   ];
 
   return (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        <TitleHead
-          title="Pick List "
-          onAdd={canCreate ? openCreate : undefined}
-        />
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6 overflow-hidden">
-          <ReusableTable data={picklists} columns={columns} />
-        </div>
-      </div>
+    <div className="w-full">
+      <ReusableTable
+        data={picklists}
+        columns={columns}
+        onAdd={canCreate ? openCreate : undefined}
+        addLabel="Add Picklist"
+      />
 
       {/* CREATE MODAL  */}
       {isCreateOpen && (

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosConfig";
-import TitleHead from "../../component/layout/TitleHead";
 import ReusableTable from "../../component/ReusableTable";
+import BulkUploadModal from "../../component/BulkUploadModal";
 import {
   Edit,
   Trash2,
@@ -150,63 +150,89 @@ const InventoryPage = () => {
     },
   ];
 
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+
+  const handleBulkUploadSubmit = async (rows, onProgress) => {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      await axiosInstance.post("/inventory", {
+        code: String(row.code || row["Code"] || ""),
+        name: String(row.name || row["Name"] || ""),
+        quantity: Number(row.quantity || row["Quantity"] || 0),
+        minStock: Number(row.minStock || row["Min Stock"] || 0),
+        location: String(row.location || row["Location"] || ""),
+      });
+      if (onProgress) onProgress(i + 1, rows.length);
+    }
+    fetchInventory();
+  };
+
   return (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* HEADER */}
-        <TitleHead
-          title="Inventory "
-          showSearch={true}
-          onAdd={openAdd}
-          onSearch={(value) => setSearch(value)}
+    <div className="w-full space-y-6">
+      {/* STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Items"
+          value={totalItems}
+          icon={<Layers size={20} className="text-blue-600" />}
+          iconBg="bg-blue-100"
         />
-
-        {/* STATS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-          <StatCard
-            title="Total Items"
-            value={totalItems}
-            icon={<Layers size={20} className="text-blue-600" />}
-            iconBg="bg-blue-100"
-          />
-          <StatCard
-            title="In Stock"
-            value={inStock}
-            icon={<Package size={20} className="text-emerald-600" />}
-            iconBg="bg-emerald-100"
-          />
-          <StatCard
-            title="Low Stock"
-            value={lowStock}
-            icon={<AlertTriangle size={20} className="text-amber-600" />}
-            iconBg="bg-amber-100"
-          />
-          <StatCard
-            title="Out of Stock"
-            value={outOfStock}
-            icon={<XCircle size={20} className="text-red-600" />}
-            iconBg="bg-red-100"
-          />
-        </div>
-
-        {/* TABLE SECTION */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 mt-6">
-          <div className="overflow-x-auto">
-            <ReusableTable
-              columns={columns}
-              data={filteredItems}
-              onEdit={openEdit}
-              onDelete={(row) => deleteItem(row.id)}
-              actionIcon={
-                <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
-              }
-              deleteIcon={
-                <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
-              }
-            />
-          </div>
-        </div>
+        <StatCard
+          title="In Stock"
+          value={inStock}
+          icon={<Package size={20} className="text-emerald-600" />}
+          iconBg="bg-emerald-100"
+        />
+        <StatCard
+          title="Low Stock"
+          value={lowStock}
+          icon={<AlertTriangle size={20} className="text-amber-600" />}
+          iconBg="bg-amber-100"
+        />
+        <StatCard
+          title="Out of Stock"
+          value={outOfStock}
+          icon={<XCircle size={20} className="text-red-600" />}
+          iconBg="bg-red-100"
+        />
       </div>
+
+      {/* TABLE SECTION */}
+      <ReusableTable
+        columns={columns}
+        data={filteredItems}
+        onSearch={(value) => setSearch(value)}
+        searchPlaceholder="Search inventory..."
+        onAdd={openAdd}
+        addLabel="Add Item"
+        onBulkUpload={() => setShowBulkUpload(true)}
+        bulkUploadLabel="Bulk Upload "
+        onEdit={openEdit}
+        onDelete={(row) => deleteItem(row.id)}
+        actionIcon={
+          <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
+        }
+        deleteIcon={
+          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
+        }
+      />
+
+      {/* BULK UPLOAD MODAL */}
+      <BulkUploadModal
+        visible={showBulkUpload}
+        onClose={() => setShowBulkUpload(false)}
+        title="Inventory"
+        sampleRows={[
+          {
+            code: "RES_10K_0402",
+            name: "10K Ohm Resistor 0402",
+            quantity: 1000,
+            minStock: 200,
+            location: "A-12",
+          },
+        ]}
+        onUploadSubmit={handleBulkUploadSubmit}
+      />
 
       {/* MODAL */}
       {showModal && (

@@ -1,4 +1,3 @@
-import TitleHead from "../../component/layout/TitleHead";
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosConfig";
 import ReusableTable from "../../component/ReusableTable";
@@ -222,13 +221,9 @@ export default function InventoryHistory() {
   };
 
   return (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* HEADER */}
-        <TitleHead title="Inventory History" />
-
-        {/* FILTERS TOOLBAR */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mt-6 mb-6">
+    <div className="w-full space-y-6">
+      {/* FILTERS TOOLBAR */}
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-200 p-5 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Search */}
             <div>
@@ -343,16 +338,12 @@ export default function InventoryHistory() {
               <p className="font-medium">Fetching history logs...</p>
             </div>
           ) : (
-            <div className="p-4 sm:p-6 overflow-x-auto">
-              <ReusableTable
-                columns={getColumns()}
-                data={history}
-                // onDelete={canDelete ? handleDelete : undefined}
-              />
-            </div>
+            <ReusableTable
+              columns={getColumns()}
+              data={history}
+            />
           )}
         </div>
-      </div>
     </div>
   );
 }

@@ -1,27 +1,28 @@
+import React, { useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { useState } from "react";
 
 export default function TitleHead(props) {
   const [searchValue, setSearchValue] = useState("");
 
-  const { title, onAdd, onSearch, showSearch = false } = props;
+  const { title, onAdd, onSearch } = props;
 
   return (
     <div
       className="
       w-full
-      border-b border-slate-200
-      py-4 px-4
+      bg-white border border-slate-200 rounded-2xl
+      p-4 sm:p-5 mb-6
       flex flex-col gap-4
       md:flex-row
       md:items-center
       md:justify-between
+      shadow-xs
     "
     >
       {/* LEFT — TITLE */}
       <div className="w-full md:w-auto">
         {title && (
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-blue-950 uppercase tracking-widest">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
             {title}
           </h1>
         )}
@@ -40,22 +41,23 @@ export default function TitleHead(props) {
         {/* SEARCH */}
         {onSearch && (
           <div className="relative w-full sm:w-64 md:w-72">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
               <Search size={18} />
             </span>
 
             <input
               type="text"
               value={searchValue}
-              placeholder="Search..."
+              placeholder={`Search ${title || "records"}...`}
               className="
                 w-full
-                border border-slate-300
-                rounded-lg
-                pl-10 pr-3 py-2
-                text-sm sm:text-base
-                focus:outline-none
-                focus:ring-2 focus:ring-blue-900/30
+                bg-slate-50 border border-slate-200
+                rounded-xl
+                pl-10 pr-3.5 py-2.5
+                text-sm text-slate-800 placeholder-slate-400
+                focus:bg-white focus:outline-none
+                focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600
+                transition-all duration-200
               "
               onChange={(e) => {
                 setSearchValue(e.target.value);
@@ -73,15 +75,15 @@ export default function TitleHead(props) {
               w-full sm:w-auto
               flex items-center justify-center gap-2
               px-5 py-2.5
-              bg-blue-950 hover:bg-blue-900
+              bg-blue-600 hover:bg-blue-700
               text-white text-sm font-semibold
-              rounded-lg
-              shadow-md hover:shadow-lg
+              rounded-xl
+              shadow-xs hover:shadow-md
               transition-all duration-200
-              active:scale-95
+              active:scale-95 cursor-pointer
             "
           >
-            <Plus size={16} />
+            <Plus size={18} />
             Add {title}
           </button>
         )}

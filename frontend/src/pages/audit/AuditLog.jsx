@@ -1,4 +1,3 @@
-import TitleHead from "../../component/layout/TitleHead";
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosConfig";
 import ReusableTable from "../../component/ReusableTable";
@@ -89,15 +88,12 @@ export default function AuditLog() {
   ];
 
   return (
-    <div className="bg-slate-100 min-h-screen">
-      <TitleHead title="Audit Log" />
-
-      <div className="px-3 sm:px-6 py-4">
-        {/* FILTER SECTION */}
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow mb-6">
+    <div className="w-full space-y-6">
+      {/* FILTER SECTION */}
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-xs mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <select
-              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm text-slate-800"
               onChange={(e) => setFilters({ ...filters, type: e.target.value })}
             >
               <option value="">All Types</option>
@@ -170,7 +166,6 @@ export default function AuditLog() {
             </button>
           </div>
         )}
-      </div>
     </div>
   );
 }

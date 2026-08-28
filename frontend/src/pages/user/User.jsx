@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Edit, Trash2, XIcon } from "lucide-react";
 import ReusableTable from "../../component/ReusableTable";
-import TitleHead from "../../component/layout/TitleHead";
 import { toast } from "sonner";
 
 /* API */
@@ -161,29 +160,21 @@ export default function User() {
   };
 
   return (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* HEADER */}
-        <TitleHead title="User" onAdd={openAddModal} />
-
-        {/* TABLE WRAPPER */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 mt-6">
-          <div className="overflow-x-auto">
-            <ReusableTable
-              columns={columns}
-              data={users}
-              onEdit={openEditModal}
-              onDelete={handleDelete}
-              actionIcon={
-                <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
-              }
-              deleteIcon={
-                <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
-              }
-            />
-          </div>
-        </div>
-      </div>
+    <div className="w-full">
+      <ReusableTable
+        columns={columns}
+        data={users}
+        onAdd={openAddModal}
+        addLabel="Add User"
+        onEdit={openEditModal}
+        onDelete={handleDelete}
+        actionIcon={
+          <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
+        }
+        deleteIcon={
+          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
+        }
+      />
 
       {/* MODAL */}
       {isModalOpen && (

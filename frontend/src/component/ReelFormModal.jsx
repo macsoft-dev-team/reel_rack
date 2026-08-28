@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { X } from "lucide-react";
 
 const ReelFormModal = ({
   visible,
@@ -50,9 +51,12 @@ const ReelFormModal = ({
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 sm:px-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+        onClick={onClose}
+      />
 
       {/* Modal Box */}
       <div
@@ -61,39 +65,52 @@ const ReelFormModal = ({
           w-full
           max-w-md
           bg-white
-          rounded-xl
+          rounded-2xl
           shadow-2xl
-          p-5 sm:p-6
+          border border-slate-200
+          p-6
           max-h-[90vh]
           overflow-y-auto
         "
       >
-        <h2 className="text-lg sm:text-xl font-semibold mb-5">
-          {initialValues ? "Edit Reel" : "Add Reel"}
-        </h2>
+        <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+          <h2 className="text-lg font-extrabold text-slate-900">
+            {initialValues ? "Edit Reel Record" : "Add Reel Record"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
         {/* IN TYPE */}
         {filterType === "in" && (
           <div className="mb-4">
-            <label className="block text-sm font-medium">Rack No</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Rack No
+            </label>
             <input
               type="text"
               name="rackNo"
               value={form.rackNo || ""}
               onChange={handleChange}
+              placeholder="e.g. R1-A"
               className="
                 w-full
-                border border-slate-300
-                rounded-lg
-                px-3 py-2 mt-1
-                text-sm
-                focus:outline-none
-                focus:ring-2 focus:ring-indigo-500/40
+                bg-slate-50 border border-slate-200
+                rounded-xl
+                px-3.5 py-2.5
+                text-sm text-slate-800
+                focus:bg-white focus:outline-none
+                focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600
+                transition-all
               "
             />
 
             {isReelFull && (
-              <p className="text-red-600 text-xs mt-1">Reel is engaged</p>
+              <p className="text-red-600 text-xs font-semibold mt-1">Reel is engaged</p>
             )}
           </div>
         )}
@@ -101,25 +118,29 @@ const ReelFormModal = ({
         {/* OUT TYPE */}
         {filterType === "out" && (
           <div className="mb-4">
-            <label className="block text-sm font-medium">Part No</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Part No
+            </label>
             <input
               type="text"
               name="partNo"
               value={form.partNo || ""}
               onChange={handleChange}
+              placeholder="e.g. PN-9902"
               className="
                 w-full
-                border border-slate-300
-                rounded-lg
-                px-3 py-2 mt-1
-                text-sm
-                focus:outline-none
-                focus:ring-2 focus:ring-indigo-500/40
+                bg-slate-50 border border-slate-200
+                rounded-xl
+                px-3.5 py-2.5
+                text-sm text-slate-800
+                focus:bg-white focus:outline-none
+                focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600
+                transition-all
               "
             />
 
             {isReelFull && (
-              <p className="text-red-600 text-xs mt-1">Reel is full</p>
+              <p className="text-red-600 text-xs font-semibold mt-1">Reel is full</p>
             )}
           </div>
         )}
@@ -127,7 +148,9 @@ const ReelFormModal = ({
         {/* QUANTITY FIELDS */}
         {filterType === "in" && (
           <div className="mb-4">
-            <label className="block text-sm font-medium">Reel Qty</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Reel Qty
+            </label>
             <input
               type="number"
               name="reelQty"
@@ -135,12 +158,13 @@ const ReelFormModal = ({
               onChange={handleChange}
               className="
                 w-full
-                border border-slate-300
-                rounded-lg
-                px-3 py-2 mt-1
-                text-sm
-                focus:outline-none
-                focus:ring-2 focus:ring-indigo-500/40
+                bg-slate-50 border border-slate-200
+                rounded-xl
+                px-3.5 py-2.5
+                text-sm text-slate-800
+                focus:bg-white focus:outline-none
+                focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600
+                transition-all
               "
             />
           </div>
@@ -148,7 +172,9 @@ const ReelFormModal = ({
 
         {filterType === "out" && (
           <div className="mb-4">
-            <label className="block text-sm font-medium">Qty</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Qty
+            </label>
             <input
               type="number"
               name="qty"
@@ -156,12 +182,13 @@ const ReelFormModal = ({
               onChange={handleChange}
               className="
                 w-full
-                border border-slate-300
-                rounded-lg
-                px-3 py-2 mt-1
-                text-sm
-                focus:outline-none
-                focus:ring-2 focus:ring-indigo-500/40
+                bg-slate-50 border border-slate-200
+                rounded-xl
+                px-3.5 py-2.5
+                text-sm text-slate-800
+                focus:bg-white focus:outline-none
+                focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600
+                transition-all
               "
             />
           </div>
@@ -178,12 +205,13 @@ const ReelFormModal = ({
             onClick={onClose}
             className="
               w-full sm:w-auto
-              px-4 py-2
-              rounded-lg
-              bg-slate-200
-              hover:bg-slate-300
-              text-sm
-              transition
+              px-4 py-2.5
+              rounded-xl
+              bg-slate-100
+              hover:bg-slate-200
+              text-slate-700
+              text-sm font-semibold
+              transition cursor-pointer
             "
           >
             Cancel
@@ -193,16 +221,17 @@ const ReelFormModal = ({
             onClick={handleSubmit}
             className="
               w-full sm:w-auto
-              px-4 py-2
-              rounded-lg
-              bg-indigo-600
-              hover:bg-indigo-700
+              px-5 py-2.5
+              rounded-xl
+              bg-blue-600
+              hover:bg-blue-700
               text-white
-              text-sm
-              transition
+              text-sm font-semibold
+              shadow-xs
+              transition cursor-pointer
             "
           >
-            Save
+            Save Record
           </button>
         </div>
       </div>

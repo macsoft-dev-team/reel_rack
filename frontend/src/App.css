@@ -95,12 +95,7 @@
     animation: shimmer 2s infinite;
 }
 
-/* Smooth transitions */
-* {
-    transition: all 0.3s ease-out;
-}
-
-/* Remove transition for specific elements to avoid conflicts */
-.no-transition {
-    transition: none !important;
-}
+/* Smooth transitions for key interactive components */
+.transition-layout {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

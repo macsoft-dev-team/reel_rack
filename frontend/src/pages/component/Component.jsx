@@ -1,9 +1,9 @@
 import { Edit, Trash2, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReusableTable from "../../component/ReusableTable";
+import BulkUploadModal from "../../component/BulkUploadModal";
 import axiosInstance from "../../api/axiosConfig";
 import { toast } from "sonner";
-import TitleHead from "../../component/layout/TitleHead";
 
 const Component = () => {
   const [showModal, setShowModal] = useState(false);
@@ -78,7 +78,7 @@ const Component = () => {
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
-      } catch (e) {}
+      } catch (e) { }
       const res = await axiosInstance.post("/component", {
         ...normalizedData,
         performedByUserId,
@@ -106,7 +106,7 @@ const Component = () => {
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
-      } catch (e) {}
+      } catch (e) { }
       const res = await axiosInstance.put(`/component/${editItem.id}`, {
         ...normalizedData,
         performedByUserId,
@@ -135,7 +135,7 @@ const Component = () => {
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
-      } catch (e) {}
+      } catch (e) { }
       await axiosInstance.delete(`/component/${id}`, {
         params: { performedByUserId },
       });
@@ -186,37 +186,67 @@ const Component = () => {
     setFilteredData(result);
   };
 
-  return (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* HEADER */}
-        <TitleHead
-          title="Components"
-          onAdd={handleAddClick}
-          showSearch={true}
-          onSearch={handleSearch}
-        />
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-        {/* TABLE SECTION */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 mt-4 sm:mt-6">
-          {/* overflow-x-auto allows the table to scroll sideways on mobile without breaking the layout */}
-          <div className="overflow-x-auto">
-            <ReusableTable
-              data={filteredData.length > 0 ? filteredData : datas}
-              columns={columns}
-              onEdit={openEditModal}
-              onDelete={(row) => deleteComponent(row.id)}
-              actionIcon={
-                <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
-              }
-              deleteIcon={
-                <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
-              }
-              pageSize={5}
-            />
-          </div>
-        </div>
-      </div>
+  const handleBulkUploadSubmit = async (rows, onProgress) => {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      await axiosInstance.post("/component", {
+        componentType: row.componentType || row["Component Type"] || "",
+        package: row.package || row["Package"] || "",
+        manufacturer: row.manufacturer || row["Manufacturer"] || "",
+        manufacturerPartNo: row.manufacturerPartNo || row["Manufacturer Part No"] || "",
+        macsoftPartNo: row.macsoftPartNo || row["Macsoft Part No"] || "",
+        minimumStockQty: Number(row.minimumStockQty || row["Minimum Stock Qty"] || 0),
+        reelSize: row.reelSize || row["Reel Size"] || "",
+        reelQty: Number(row.reelQty || row["Reel Qty"] || 0),
+      });
+      if (onProgress) onProgress(i + 1, rows.length);
+    }
+    fetchComponents();
+  };
+
+  return (
+    <div className="w-full">
+      <ReusableTable
+        data={filteredData.length > 0 ? filteredData : datas}
+        columns={columns}
+        onSearch={handleSearch}
+        searchPlaceholder="Search components..."
+        onAdd={handleAddClick}
+        addLabel="Add Component"
+        onBulkUpload={() => setShowBulkUpload(true)}
+        bulkUploadLabel="Bulk Upload "
+        onEdit={openEditModal}
+        onDelete={(row) => deleteComponent(row.id)}
+        actionIcon={
+          <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
+        }
+        deleteIcon={
+          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
+        }
+        pageSize={5}
+      />
+
+      {/* BULK UPLOAD MODAL */}
+      <BulkUploadModal
+        visible={showBulkUpload}
+        onClose={() => setShowBulkUpload(false)}
+        title="Components"
+        sampleRows={[
+          {
+            componentType: "Resistor",
+            package: "0603",
+            manufacturer: "Yageo",
+            manufacturerPartNo: "RC0603FR-0710KL",
+            macsoftPartNo: "COMP-101",
+            minimumStockQty: 500,
+            reelSize: "7 inch",
+            reelQty: 5000,
+          },
+        ]}
+        onUploadSubmit={handleBulkUploadSubmit}
+      />
 
       {/* MODAL */}
       {showModal && (

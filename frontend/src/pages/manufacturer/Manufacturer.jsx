@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosConfig";
-import TitleHead from "../../component/layout/TitleHead";
 import ReusableTable from "../../component/ReusableTable";
+import BulkUploadModal from "../../component/BulkUploadModal";
 import { Edit, Trash2, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -82,7 +82,7 @@ const ManufacturerPage = () => {
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
-      } catch (e) {}
+      } catch (e) { }
       const payload = { ...form, performedByUserId };
 
       if (form.id) {
@@ -115,7 +115,7 @@ const ManufacturerPage = () => {
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
-      } catch (e) {}
+      } catch (e) { }
       await axiosInstance.delete(`${API}/${id}`, {
         params: { performedByUserId },
       });
@@ -145,35 +145,58 @@ const ManufacturerPage = () => {
     { key: "email", label: "Email" },
   ];
 
-  return (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* HEADER */}
-        <TitleHead
-          title="Manufacturers"
-          showSearch={true}
-          onAdd={openAdd}
-          onSearch={(value) => setSearch(value)}
-        />
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-        {/* TABLE SECTION */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 mt-6">
-          <div className="overflow-x-auto">
-            <ReusableTable
-              columns={columns}
-              data={filteredManufacturers}
-              onEdit={openEdit}
-              onDelete={(row) => deleteManufacturer(row.id)}
-              actionIcon={
-                <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
-              }
-              deleteIcon={
-                <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
-              }
-            />
-          </div>
-        </div>
-      </div>
+  const handleBulkUploadSubmit = async (rows, onProgress) => {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      await axiosInstance.post("/manufacturer", {
+        name: String(row.name || row["Name"] || ""),
+        country: String(row.country || row["Country"] || ""),
+        phone: String(row.phone || row["Phone"] || ""),
+        email: String(row.email || row["Email"] || ""),
+      });
+      if (onProgress) onProgress(i + 1, rows.length);
+    }
+    fetchManufacturers();
+  };
+
+  return (
+    <div className="w-full">
+      <ReusableTable
+        columns={columns}
+        data={filteredManufacturers}
+        onSearch={(value) => setSearch(value)}
+        searchPlaceholder="Search manufacturers..."
+        onAdd={openAdd}
+        addLabel="Add Manufacturer"
+        onBulkUpload={() => setShowBulkUpload(true)}
+        bulkUploadLabel="Bulk Upload "
+        onEdit={openEdit}
+        onDelete={(row) => deleteManufacturer(row.id)}
+        actionIcon={
+          <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
+        }
+        deleteIcon={
+          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
+        }
+      />
+
+      {/* BULK UPLOAD MODAL */}
+      <BulkUploadModal
+        visible={showBulkUpload}
+        onClose={() => setShowBulkUpload(false)}
+        title="Manufacturers"
+        sampleRows={[
+          {
+            name: "Texas Instruments",
+            country: "USA",
+            phone: "+1-800-123-4567",
+            email: "contact@ti.com",
+          },
+        ]}
+        onUploadSubmit={handleBulkUploadSubmit}
+      />
 
       {/* MODAL */}
       {showModal && (

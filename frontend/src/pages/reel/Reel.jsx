@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import TitleHead from "../../component/layout/TitleHead";
+import React, { useEffect, useState } from "react";
 import ReusableTable from "../../component/ReusableTable";
+import BulkUploadModal from "../../component/BulkUploadModal";
 import axiosInstance from "../../api/axiosConfig";
 import { toast } from "sonner";
 import { Edit, Trash2, XIcon } from "lucide-react";
@@ -75,7 +75,7 @@ export default function Reel() {
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
-      } catch (e) {}
+      } catch (e) { }
       const payload = {
         ...form,
         qtyinitial: Number(form.qtyinitial),
@@ -110,7 +110,7 @@ export default function Reel() {
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
-      } catch (e) {}
+      } catch (e) { }
       await axiosInstance.delete(`${API_URL}/${id}`, {
         params: { performedByUserId },
       });
@@ -138,31 +138,60 @@ export default function Reel() {
     },
   ];
 
-  return (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* HEADER */}
-        <TitleHead title="Reels" onAdd={openCreate} />
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-        {/* TABLE SECTION */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 mt-4 sm:mt-6">
-          <div className="overflow-x-auto">
-            <ReusableTable
-              columns={columns}
-              data={reels}
-              loading={loading}
-              onEdit={openEdit}
-              onDelete={(row) => handleDelete(row.id)}
-              actionIcon={
-                <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
-              }
-              deleteIcon={
-                <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
-              }
-            />
-          </div>
-        </div>
-      </div>
+  const handleBulkUploadSubmit = async (rows, onProgress) => {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      await axiosInstance.post("/reel", {
+        componentid: Number(row.componentid || row["Component ID"] || 1),
+        lotnumber: String(row.lotnumber || row["Lot Number"] || ""),
+        qtyinitial: Number(row.qtyinitial || row["Qty Initial"] || 0),
+        qtyremaining: Number(row.qtyremaining || row["Qty Remaining"] || 0),
+        reelstatus: row.reelstatus || row["Status"] || "OPEN",
+      });
+      if (onProgress) onProgress(i + 1, rows.length);
+    }
+    fetchReels();
+  };
+
+  return (
+    <div className="w-full">
+      <ReusableTable
+        columns={columns}
+        data={reels}
+        loading={loading}
+        onAdd={openCreate}
+        addLabel="Add Reel"
+        onBulkUpload={() => setShowBulkUpload(true)}
+        bulkUploadLabel="Bulk Upload "
+        onEdit={openEdit}
+        onDelete={(row) => handleDelete(row.id)}
+        actionIcon={
+          <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
+        }
+        deleteIcon={
+          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700 transition-colors" />
+        }
+        pageSize={5}
+      />
+
+      {/* BULK UPLOAD MODAL */}
+      <BulkUploadModal
+        visible={showBulkUpload}
+        onClose={() => setShowBulkUpload(false)}
+        title="Reels"
+        sampleRows={[
+          {
+            componentid: 1,
+            lotnumber: "LOT-2026-001",
+            qtyinitial: 5000,
+            qtyremaining: 5000,
+            reelstatus: "OPEN",
+          },
+        ]}
+        onUploadSubmit={handleBulkUploadSubmit}
+      />
 
       {/* RESPONSIVE MODAL */}
       {isModalOpen && (

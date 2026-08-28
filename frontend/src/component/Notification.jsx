@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Bell, CheckCircle, AlertTriangle } from "lucide-react";
-import TitleHead from "./layout/TitleHead";
 
 export default function Notification() {
   const [notifications, setNotifications] = useState([
@@ -35,48 +34,41 @@ export default function Notification() {
 
   const getIcon = (type) => {
     if (type === "warning") {
-      return <AlertTriangle className="text-yellow-500" />;
+      return <AlertTriangle className="text-amber-500" size={18} />;
     }
     if (type === "success") {
-      return <CheckCircle className="text-green-500" />;
+      return <CheckCircle className="text-emerald-500" size={18} />;
     }
-    return <Bell className="text-blue-500" />;
+    return <Bell className="text-blue-600" size={18} />;
   };
 
   return (
-    <div className="p-6 bg-slate-100 min-h-screen">
-      {/* HEADER */}
-      <div className="mb-6">
-        <TitleHead title="Notifications" />
-      </div>
-
-      {/* NOTIFICATION CARD */}
-      <div className="bg-white rounded-xl shadow p-6 max-w-4xl">
+    <div className="w-full">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 max-w-4xl">
         {notifications.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {notifications.map((note) => (
               <div
                 key={note.id}
-                className={`flex items-start gap-4 p-4 rounded-lg border transition
-                  ${note.read
+                className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-150 ${
+                  note.read
                     ? "bg-white border-slate-200"
-                    : "bg-blue-50 border-blue-300"
-                  }`}
+                    : "bg-blue-50/50 border-blue-200 shadow-2xs"
+                }`}
               >
-                {/* ICON */}
-                <div className="mt-1">{getIcon(note.type)}</div>
-
-                {/* CONTENT */}
-                <div className="flex-1">
-                  <p className="font-medium text-slate-800">{note.message}</p>
-                  <span className="text-sm text-slate-500">{note.time}</span>
+                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex-shrink-0">
+                  {getIcon(note.type)}
                 </div>
 
-                {/* ACTION */}
+                <div className="flex-1">
+                  <p className="font-semibold text-sm text-slate-900">{note.message}</p>
+                  <span className="text-xs text-slate-500 mt-0.5 block">{note.time}</span>
+                </div>
+
                 {!note.read && (
                   <button
                     onClick={() => markAsRead(note.id)}
-                    className="text-sm text-indigo-600 hover:underline"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200/60 transition-colors cursor-pointer"
                   >
                     Mark as read
                   </button>
@@ -85,8 +77,9 @@ export default function Notification() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-10 text-slate-500">
-            No notifications found
+          <div className="text-center py-12 text-slate-400">
+            <Bell size={32} className="mx-auto text-slate-300 mb-2" />
+            <p className="text-sm font-medium">No notifications found</p>
           </div>
         )}
       </div>

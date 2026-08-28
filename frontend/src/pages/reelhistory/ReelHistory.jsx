@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import TitleHead from "../../component/layout/TitleHead";
 import ReusableTable from "../../component/ReusableTable";
 import axiosInstance from "../../api/axiosConfig";
 import { toast } from "sonner";
@@ -124,14 +123,9 @@ export default function ReelHistory() {
   ];
 
   return (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* HEADER */}
-        <TitleHead title="Rack Audit Log" />
-
-        <div className="mt-6">
-          {/* FILTERS TOOLBAR */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+    <div className="w-full space-y-6">
+      {/* FILTERS TOOLBAR */}
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-200 p-5 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
               {/* Reel ID */}
               <div>
@@ -214,18 +208,12 @@ export default function ReelHistory() {
             </div>
           </div>
 
-          {/* TABLE SECTION */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-4 sm:p-6 overflow-x-auto">
-              <ReusableTable
-                columns={columns}
-                data={filteredHistory}
-                pageSize={5}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* TABLE SECTION */}
+      <ReusableTable
+        columns={columns}
+        data={filteredHistory}
+        pageSize={5}
+      />
     </div>
   );
 }
