@@ -1,0 +1,13 @@
+extends layout
+
+block content
+  h1= title
+  p Welcome to #{title}
+
+  if components && components.length
+    ul
+      each component in components
+        li #{component.componentType}
+        
+  else
+    p No components found.

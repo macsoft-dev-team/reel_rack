@@ -1,0 +1,250 @@
+// ============================
+// Prisma Generator
+// ============================
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================
+// Database
+// ============================
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================
+// Component Master
+// ============================
+model Component {
+  id                 Int    @id @default(autoincrement())
+  componentType      String
+  package            String
+  manufacturer       String
+  manufacturerPartNo String
+  macsoftPartNo      String @unique
+  reelSize           Int
+  reelSizeUnit       String @default("inch")
+  minimumStockQty    Int
+  reelQty            Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================
+// Rack
+// ============================
+model Rack {
+  id       Int       @id @default(autoincrement())
+  rackCode String    @unique
+  cells    Cell[]
+  history  History[]
+}
+
+model Cell {
+  id       Int     @id @default(autoincrement())
+  rowNo    Int
+  colNo    Int
+  reelCode String?
+
+  rackId Int
+  rack   Rack @relation(fields: [rackId], references: [id])
+
+  history History[]
+}
+
+model History {
+  id        Int      @id @default(autoincrement())
+  reelCode  String
+  action    String
+  message   String?
+  createdAt DateTime @default(now())
+
+  rackId Int
+  rack   Rack @relation(fields: [rackId], references: [id])
+
+  cellId Int
+  cell   Cell @relation(fields: [cellId], references: [id])
+}
+
+// ============================
+// Inventory
+// ============================
+model Inventory {
+  id       Int    @id @default(autoincrement())
+  code     String @unique
+  name     String
+  quantity Int
+  minStock Int
+  location String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================
+// User
+// ============================
+model User {
+  id         Int        @id @default(autoincrement())
+  employeeId String     @unique
+  name       String
+  password   String
+  role       UserRole   @default(OPERATOR)
+  status     UserStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventorytransactions inventorytransaction[]
+  inventoryHistory       InventoryHistory[]
+}
+
+// ============================
+// Pick List
+// ============================
+model PickList {
+  id       Int        @id @default(autoincrement())
+  code     String     @unique
+  name     String
+  operator String // OPERATOR_1, OPERATOR_2 (matches UI)
+  status   PickStatus @default(CREATED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items PickListItem[]
+  inventorytransactions inventorytransaction[]
+}
+
+model PickListItem {
+  id Int @id @default(autoincrement())
+
+  pickListId Int
+  pickList   PickList @relation(fields: [pickListId], references: [id], onDelete: Cascade)
+
+  componentId   Int
+  componentCode String
+  componentName String
+
+  availableQty Int
+  usedQty      Int    @default(0)
+  location     String
+}
+
+model Manufacturer {
+  id      Int     @id @default(autoincrement())
+  name    String
+  country String?
+  phone   String?
+  email   String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Reel {
+  id           String     @id @default(uuid())
+  componentid  String
+  lotnumber    String
+  qtyinitial   Int
+  qtyremaining Int
+  reelstatus   ReelStatus @default(OPEN)
+  isopen       Boolean    @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventorytransactions inventorytransaction[]
+}
+
+model inventorytransaction {
+  id                 Int               @id @default(autoincrement())
+  reelId             String?
+  pickTaskId         Int?
+
+  transactionType    InventoryTxnType
+
+  qtyBefore          Int?
+  qtyAfter           Int?
+  qtyDelta           Int?
+
+  performedByUserId  Int
+  transactionReason  String?
+
+  reel               Reel?             @relation(fields: [reelId], references: [id])
+  pickTask           PickList?         @relation(fields: [pickTaskId], references: [id])
+  performedByUser    User              @relation(fields: [performedByUserId], references: [id])
+
+  createdAt          DateTime          @default(now())
+}
+
+enum ReelStatus {
+  OPEN
+  CLOSED
+}
+
+// ============================
+// ENUMS
+// ============================
+enum SubRowStatus {
+  EMPTY
+  OCCUPIED
+}
+
+enum ReelAction {
+  INSERT
+  REMOVE
+  ERROR
+}
+
+// ---------------------------
+// Inventory history for CRUD operations
+// ---------------------------
+model InventoryHistory {
+  id                Int      @id @default(autoincrement())
+  moduleName        String   // e.g. Reel, Component, PickList
+  actionType        String   // CREATE, UPDATE, DELETE, STATUS_CHANGE
+  itemName          String?  // human-readable identifier
+  itemId            String?  // the primary ID of the item
+  updatedFields     Json?    // JSON object listing field changes
+  quantityChange    Int?     // numeric delta if applicable
+  performedByUserId Int
+  performedByUser   User     @relation(fields: [performedByUserId], references: [id])
+  timestamp         DateTime @default(now())
+}
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  OPERATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PickStatus {
+  CREATED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum InventoryTxnType {
+  COMPONENT_PLACED
+  PICKLIST_QTY_UPDATE
+  REEL_CREATED
+  REEL_UPDATED
+  REEL_DELETED
+  COMPONENT_CREATED
+  COMPONENT_UPDATED
+  COMPONENT_DELETED
+  PICKLIST_CREATED
+  PICKLIST_UPDATED
+  PICKLIST_DELETED
+  MANUFACTURER_CREATED
+  MANUFACTURER_UPDATED
+  MANUFACTURER_DELETED
+}

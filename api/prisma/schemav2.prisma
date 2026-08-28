@@ -1,0 +1,277 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" 
+}
+
+//////////////////////
+// ENUMS
+//////////////////////
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  LOGIN
+  LOGOUT
+}
+
+enum ReelStatus {
+  AVAILABLE
+  RESERVED
+  IN_USE
+  EMPTY
+  HOLD
+}
+
+enum PickListStatus {
+  CREATED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PickTaskStatus {
+  PENDING
+  PICKED
+  WRONG_PICK
+  TIMEOUT
+  CANCELLED
+}
+
+enum InventoryTxnType {
+  PICK_ISSUE
+  PICK_RETURN
+  MANUAL_ADJUSTMENT
+}
+
+enum PickEventType {
+  MQTT_PUBLISHED
+  PICK_CONFIRMED
+  WRONG_REEL_DETECTED
+  PICK_TIMEOUT
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  STORE_ADMIN
+  OPERATOR
+  AUDITOR
+}
+
+//////////////////////
+// USER & RBAC
+//////////////////////
+
+model user {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  employeecode String   @unique
+  password     String
+  role         UserRole
+  isActive     Boolean  @default(true)
+
+  createdAt    DateTime @default(now())
+
+  // inverse relations
+  lockedSlots      rackslot[]           @relation("SlotLockedBy")
+  picklists        picklist[]
+  inventoryTxns    inventorytransaction[]
+  auditLogs        auditlog[]           @relation("AuditPerformedBy")
+}
+
+//////////////////////
+// MASTER DATA
+//////////////////////
+
+model manufacturer {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  country       String?
+
+  createdAt     DateTime @default(now())
+}
+
+model component {
+  id              Int      @id @default(autoincrement())
+  partNumber      String   @unique
+  manufacturer    String?
+  manufacturerPn  String?
+  packageCode     String?
+  description     String?
+
+  reels           reel[]
+
+  createdAt       DateTime @default(now())
+}
+
+//////////////////////
+// INVENTORY UNIT
+//////////////////////
+
+model reel {
+  id              Int        @id @default(autoincrement())
+  componentId     Int
+  lotNumber       String?
+
+  qtyInitial      Int
+  qtyRemaining    Int
+
+  reelStatus      ReelStatus @default(AVAILABLE)
+  isOpened        Boolean    @default(false)
+
+  component       component  @relation(fields: [componentId], references: [id])
+  rackSlot        rackslot?
+  inventoryTxns   inventorytransaction[]
+  pickTasks       picktask[]
+
+  createdAt       DateTime   @default(now())
+}
+
+//////////////////////
+// PHYSICAL STORAGE
+//////////////////////
+
+model rack {
+  id             Int      @id @default(autoincrement())
+  rackCode       String   @unique
+  rackName       String?
+  locationCode   String?
+
+  rowCount       Int
+  columnCount    Int
+
+  slots          rackslot[]
+  pickTasks      picktask[]
+
+  createdAt      DateTime @default(now())
+}
+
+model rackslot {
+  id               Int      @id @default(autoincrement())
+  rackId           Int
+  rowIndex         Int
+  columnIndex      Int
+  reelId           Int?     @unique
+
+  isLocked         Boolean  @default(false)
+  lockedByUserId   Int?
+
+  rack             rack     @relation(fields: [rackId], references: [id])
+  reel             reel?    @relation(fields: [reelId], references: [id])
+  lockedByUser     user?    @relation("SlotLockedBy", fields: [lockedByUserId], references: [id])
+
+  createdAt        DateTime @default(now())
+
+  @@unique([rackId, rowIndex, columnIndex])
+}
+
+//////////////////////
+// PICKING FLOW
+//////////////////////
+
+model picklist {
+  id               Int             @id @default(autoincrement())
+  pickListNo       String          @unique
+  pickListStatus   PickListStatus  @default(CREATED)
+  createdByUserId  Int
+
+  createdByUser    user            @relation(fields: [createdByUserId], references: [id], map: "picklist_user_fk")
+  tasks            picktask[]
+
+  createdAt        DateTime        @default(now())
+}
+
+model picktask {
+  id                 Int              @id @default(autoincrement())
+  pickListId         Int
+  reelId             Int
+  rackId             Int
+
+  targetRowIndex     Int
+  targetColumnIndex  Int
+
+  expectedQty        Int
+  allowedPickSec     Int
+
+  pickTaskStatus     PickTaskStatus   @default(PENDING)
+
+  pickStartedAt      DateTime         @default(now())
+  pickCompletedAt    DateTime?
+
+  pickList           picklist         @relation(fields: [pickListId], references: [id])
+  reel               reel             @relation(fields: [reelId], references: [id])
+  rack               rack             @relation(fields: [rackId], references: [id])
+
+  events             pickevent[]
+  inventoryTxns      inventorytransaction[]
+
+  createdAt          DateTime         @default(now())
+}
+
+//////////////////////
+// INVENTORY HISTORY
+//////////////////////
+
+model inventorytransaction {
+  id                 Int               @id @default(autoincrement())
+  reelId             Int
+  pickTaskId         Int?
+
+  transactionType    InventoryTxnType
+
+  qtyBefore          Int
+  qtyAfter           Int
+  qtyDelta           Int
+
+  performedByUserId  Int
+  transactionReason  String?
+
+  reel               reel              @relation(fields: [reelId], references: [id])
+  pickTask           picktask?          @relation(fields: [pickTaskId], references: [id])
+  performedByUser    user              @relation(fields: [performedByUserId], references: [id], map: "invtxn_user_fk")
+
+  createdAt          DateTime          @default(now())
+}
+
+//////////////////////
+// EVENTS / MQTT LOG
+//////////////////////
+
+model pickevent {
+  id             Int           @id @default(autoincrement())
+  pickTaskId     Int
+  eventType      PickEventType
+  eventMessage   String?
+  eventPayload   Json?
+
+  pickTask       picktask      @relation(fields: [pickTaskId], references: [id])
+
+  createdAt      DateTime      @default(now())
+}
+
+
+model auditlog {
+  id             Int         @id @default(autoincrement())
+
+  entityType     String      // e.g. "reel", "rackslot", "picktask"
+  entityId       Int
+
+  action         AuditAction
+
+  oldValue       Json?
+  newValue       Json?
+
+  performedById  Int
+  performedBy    user        @relation("AuditPerformedBy", fields: [performedById], references: [id])
+
+  source         String?     // UI / MQTT / SYSTEM / API
+  remarks        String?
+
+  createdAt      DateTime    @default(now())
+
+  @@index([entityType, entityId])
+}
