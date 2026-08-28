@@ -5,14 +5,14 @@ import Header from "./Header";
 
 export default function Layout() {
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    const saved = localStorage.getItem("sidebar_collapsed");
+    const saved = sessionStorage.getItem("sidebar_collapsed");
     return saved ? JSON.parse(saved) : false;
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("sidebar_collapsed", JSON.stringify(isCollapsed));
+    sessionStorage.setItem("sidebar_collapsed", JSON.stringify(isCollapsed));
   }, [isCollapsed]);
 
   const toggleSidebar = () => {

@@ -8,8 +8,8 @@
 //   const [user, setUser] = useState(null);
 
 //   useEffect(() => {
-//     // Get user info from localStorage
-//     const userDataString = localStorage.getItem("user");
+//     // Get user info from sessionStorage
+//     const userDataString = sessionStorage.getItem("user");
 //     if (userDataString) {
 //       try {
 //         const userData = JSON.parse(userDataString);

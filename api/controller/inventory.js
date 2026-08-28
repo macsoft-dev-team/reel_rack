@@ -26,6 +26,9 @@ exports.createInventory = async (req, res) => {
     const data = await Inventory.createInventory(req.body);
     res.status(201).json(data);
   } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: `An inventory item with code '${req.body.code}' already exists` });
+    }
     res.status(400).json({ message: error.message });
   }
 };
@@ -36,6 +39,9 @@ exports.updateInventory = async (req, res) => {
     const data = await Inventory.updateInventory(req.params.id, req.body);
     res.json(data);
   } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: `An inventory item with code '${req.body.code}' already exists` });
+    }
     res.status(400).json({ message: error.message });
   }
 };

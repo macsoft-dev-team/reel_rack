@@ -78,7 +78,7 @@ const ManufacturerPage = () => {
     try {
       setLoading(true);
       // include performedByUserId if available
-      const user = localStorage.getItem("user");
+      const user = sessionStorage.getItem("user");
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
@@ -111,7 +111,7 @@ const ManufacturerPage = () => {
 
     try {
       setLoading(true);
-      const user = localStorage.getItem("user");
+      const user = sessionStorage.getItem("user");
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;

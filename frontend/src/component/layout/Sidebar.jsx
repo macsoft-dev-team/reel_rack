@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Boxes,
   Layers,
@@ -10,7 +10,6 @@ import {
   X,
   Factory,
   Film,
-  LogOut,
   ChevronRight,
   PanelLeftClose,
   PanelLeft,
@@ -19,10 +18,6 @@ import logo from "../../assets/Logo.jpg";
 
 export default function Sidebar({ isCollapsed, onToggleCollapse, mobileOpen, setMobileOpen }) {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const [user, setUser] = useState(null);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const navItems = [
     { label: "Pick List", path: "/picklist", icon: ListChecks },
@@ -35,26 +30,6 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, mobileOpen, set
     { label: "Audit Log", path: "/auditlog", icon: History },
     { label: "Manufacturer", path: "/manufecturer", icon: Factory },
   ];
-
-  useEffect(() => {
-    const userDataString = localStorage.getItem("user");
-    if (userDataString) {
-      try {
-        setUser(JSON.parse(userDataString));
-      } catch (error) {
-        console.error("Error parsing user data:", error);
-      }
-    }
-  }, []);
-
-  const avatarInitial = user?.name ? user.name.charAt(0).toUpperCase() : "U";
-  const userName = user?.name || "User";
-  const employeeId = user?.employeeId || "N/A";
-
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    navigate("/");
-  };
 
   return (
     <>
@@ -111,14 +86,14 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, mobileOpen, set
             <button
               onClick={onToggleCollapse}
               title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              className="hidden lg:flex p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="hidden lg:flex p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
             >
               {isCollapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
             </button>
           </div>
 
           {/* NAVIGATION ITEMS */}
-          <nav className="space-y-1.5">
+          <nav className="space-y-1.5 flex-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = location.pathname === item.path;
@@ -164,91 +139,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, mobileOpen, set
               );
             })}
           </nav>
-
-          {/* USER & LOGOUT SECTION AT BOTTOM */}
-          <div className="mt-auto pt-6 border-t border-slate-100">
-            {!isCollapsed ? (
-              /* Expanded User Card */
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
-                  <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
-                    {avatarInitial}
-                  </div>
-                  <div className="overflow-hidden">
-                    <span className="block text-xs font-bold text-slate-800 truncate">
-                      {userName}
-                    </span>
-                    <span className="block text-[10px] text-slate-500 font-medium truncate">
-                      ID: {employeeId}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setShowLogoutModal(true)}
-                  className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold px-3 py-2.5 rounded-xl transition-all duration-200 cursor-pointer"
-                >
-                  <LogOut size={16} />
-                  <span>Log Out</span>
-                </button>
-              </div>
-            ) : (
-              /* Collapsed User Avatar & Logout Icon */
-              <div className="flex flex-col items-center gap-3">
-                <div
-                  title={`${userName} (ID: ${employeeId})`}
-                  className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-xs cursor-pointer"
-                >
-                  {avatarInitial}
-                </div>
-
-                <button
-                  onClick={() => setShowLogoutModal(true)}
-                  title="Log Out"
-                  className="relative group p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
-                >
-                  <LogOut size={18} />
-                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 pointer-events-none transition-all duration-200 whitespace-nowrap z-50">
-                    Log Out
-                  </div>
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </aside>
-
-      {/* LIGHT LOGOUT CONFIRMATION MODAL */}
-      {showLogoutModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-            onClick={() => setShowLogoutModal(false)}
-          />
-
-          <div className="relative z-10 w-full max-w-sm p-6 rounded-2xl bg-white text-slate-800 shadow-2xl border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 mb-2">Confirm Logout</h2>
-            <p className="text-sm text-slate-600 mb-6">
-              Are you sure you want to end your current session?
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowLogoutModal(false)}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 text-white shadow-xs transition-colors"
-              >
-                Log out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

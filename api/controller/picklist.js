@@ -13,7 +13,8 @@ exports.createPickList = async (req, res) => {
 /* GET ALL */
 exports.getPickLists = async (req, res) => {
   try {
-    const picklists = await PickListService.getPickLists();
+    const { operator } = req.query;
+    const picklists = await PickListService.getPickLists(operator);
     res.json(picklists);
   } catch (err) {
     res.status(500).json({ message: err.message });

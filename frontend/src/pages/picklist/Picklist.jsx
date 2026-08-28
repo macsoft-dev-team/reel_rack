@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosConfig";
 import ReusableTable from "../../component/ReusableTable";
-import { Trash2, X, Eye, Edit, Plus, Search, AlertCircle } from "lucide-react";
+import { Trash2, X, Eye, Edit, Plus, Search, AlertCircle, Sparkles, CheckCircle2, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 
 /* CONFIG */
@@ -19,7 +19,7 @@ const statusBadge = (status) => {
 
 export default function Picklist() {
   // ROLE-BASED ACCESS CONTROL
-  const storedUserRaw = localStorage.getItem("user");
+  const storedUserRaw = sessionStorage.getItem("user");
   let currentUser = {};
   try {
     currentUser = storedUserRaw ? JSON.parse(storedUserRaw) : {};
@@ -32,7 +32,7 @@ export default function Picklist() {
   const isAdmin = userRole === "ADMIN";
   const isOperator = userRole === "OPERATOR";
 
-  const canCreate = isSuperAdmin || isAdmin;
+  const canCreate = isSuperAdmin || isAdmin || isOperator;
   const canEdit = isSuperAdmin || isAdmin || isOperator;
   const canDelete = isSuperAdmin || isAdmin;
 
@@ -111,7 +111,7 @@ export default function Picklist() {
     }
 
     try {
-      const user = localStorage.getItem("user");
+      const user = sessionStorage.getItem("user");
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
@@ -151,7 +151,7 @@ export default function Picklist() {
   const openView = async (row) => {
     try {
       if (row.status === "CREATED") {
-        const user = localStorage.getItem("user");
+        const user = sessionStorage.getItem("user");
         let performedByUserId;
         try {
           performedByUserId = user ? JSON.parse(user).id : undefined;
@@ -208,7 +208,7 @@ export default function Picklist() {
       );
 
       if (response && response.data) {
-        const user = localStorage.getItem("user");
+        const user = sessionStorage.getItem("user");
         let performedByUserId;
         try {
           performedByUserId = user ? JSON.parse(user).id : undefined;

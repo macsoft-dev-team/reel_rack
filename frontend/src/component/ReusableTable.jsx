@@ -112,7 +112,7 @@ export default function ReusableTable({
 
       {/* TABLE GRID */}
       <div className="w-full overflow-x-auto">
-        <table className="min-w-[700px] w-full text-xs sm:text-sm text-left">
+        <table className="min-w-[700px] w-full text-sm text-left">
           <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
             <tr>
               {columns.map((col) => (
@@ -144,7 +144,7 @@ export default function ReusableTable({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`py-3.5 px-4 text-center font-medium text-slate-700 ${
+                      className={`py-3.5 px-4 text-center font-medium text-sm text-slate-700 ${
                         col.wrap
                           ? "whitespace-normal wrap-break-word text-left"
                           : "whitespace-nowrap"

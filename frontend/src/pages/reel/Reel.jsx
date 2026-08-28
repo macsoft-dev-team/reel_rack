@@ -71,7 +71,7 @@ export default function Reel() {
   /* SUBMIT */
   const handleSubmit = async () => {
     try {
-      const user = localStorage.getItem("user");
+      const user = sessionStorage.getItem("user");
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;
@@ -106,7 +106,7 @@ export default function Reel() {
     if (!confirmed) return;
 
     try {
-      const user = localStorage.getItem("user");
+      const user = sessionStorage.getItem("user");
       let performedByUserId;
       try {
         performedByUserId = user ? JSON.parse(user).id : undefined;

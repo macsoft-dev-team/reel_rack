@@ -61,23 +61,73 @@ const createPickList = async (data) => {
 /* 
    GET ALL PICK LISTS
  */
-const getPickLists = async () => {
-  return prisma.pickList.findMany({
+const getPickLists = async (operatorFilter) => {
+  const where = {};
+  if (operatorFilter) {
+    where.operator = operatorFilter;
+  }
+
+  const picklists = await prisma.pickList.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     include: {
       items: true,
     },
   });
+
+  const openReels = await prisma.reel.findMany({
+    where: { isopen: true },
+    select: { id: true, componentid: true, lotnumber: true, qtyremaining: true, reelstatus: true }
+  });
+
+  const openReelMap = {};
+  openReels.forEach(r => {
+    if (!openReelMap[r.componentid]) openReelMap[r.componentid] = [];
+    openReelMap[r.componentid].push(r);
+  });
+
+  return picklists.map(pl => ({
+    ...pl,
+    items: pl.items.map(item => ({
+      ...item,
+      openReelSuggestion: openReelMap[item.componentCode] && openReelMap[item.componentCode].length > 0
+        ? openReelMap[item.componentCode][0]
+        : null
+    }))
+  }));
 };
 
 /* 
    GET PICK LIST BY ID
  */
 const getPickListById = async (id) => {
-  return prisma.pickList.findUnique({
+  const picklist = await prisma.pickList.findUnique({
     where: { id: Number(id) },
     include: { items: true },
   });
+
+  if (!picklist) return null;
+
+  const openReels = await prisma.reel.findMany({
+    where: { isopen: true },
+    select: { id: true, componentid: true, lotnumber: true, qtyremaining: true, reelstatus: true }
+  });
+
+  const openReelMap = {};
+  openReels.forEach(r => {
+    if (!openReelMap[r.componentid]) openReelMap[r.componentid] = [];
+    openReelMap[r.componentid].push(r);
+  });
+
+  return {
+    ...picklist,
+    items: picklist.items.map(item => ({
+      ...item,
+      openReelSuggestion: openReelMap[item.componentCode] && openReelMap[item.componentCode].length > 0
+        ? openReelMap[item.componentCode][0]
+        : null
+    }))
+  };
 };
 
 /* 

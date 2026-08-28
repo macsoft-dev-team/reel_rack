@@ -6,10 +6,16 @@
   color-scheme: light;
 }
 
+html {
+  font-size: 14px;
+}
+
 body {
   background-color: #F8FAFC;
   color: #1F2937;
   font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

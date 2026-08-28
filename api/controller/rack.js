@@ -1,8 +1,6 @@
 const rackService = require("../service/rack");
 
-/* 
-   GET ALL RACKS
-    */
+/* GET ALL RACKS */
 const getAllRacks = async (_req, res) => {
   try {
     const racks = await rackService.getAllRacks();
@@ -13,9 +11,7 @@ const getAllRacks = async (_req, res) => {
   }
 };
 
-/* 
-   GET RACK BY ID
-    */
+/* GET RACK BY ID */
 const getRackById = async (req, res) => {
   try {
     const rackId = Number(req.params.id);
@@ -37,7 +33,50 @@ const getRackById = async (req, res) => {
   }
 };
 
+/* CREATE RACK */
+const createRack = async (req, res) => {
+  try {
+    const { rackCode, rows, cols } = req.body;
+    if (!rackCode) {
+      return res.status(400).json({ error: "Rack code is required" });
+    }
+    const rack = await rackService.createRack({ rackCode, rows, cols });
+    res.status(201).json(rack);
+  } catch (err) {
+    console.error("Create rack error:", err);
+    res.status(500).json({ error: err.message || "Failed to create rack" });
+  }
+};
+
+/* UPDATE RACK */
+const updateRack = async (req, res) => {
+  try {
+    const rackId = Number(req.params.id);
+    const { rackCode, rows, cols } = req.body;
+    const rack = await rackService.updateRack(rackId, { rackCode, rows, cols });
+    res.status(200).json(rack);
+  } catch (err) {
+    console.error("Update rack error:", err);
+    res.status(500).json({ error: err.message || "Failed to update rack" });
+  }
+};
+
+/* DELETE RACK */
+const deleteRack = async (req, res) => {
+  try {
+    const rackId = Number(req.params.id);
+    await rackService.deleteRack(rackId);
+    res.status(200).json({ message: "Rack deleted successfully" });
+  } catch (err) {
+    console.error("Delete rack error:", err);
+    res.status(500).json({ error: err.message || "Failed to delete rack" });
+  }
+};
+
 module.exports = {
   getAllRacks,
   getRackById,
+  createRack,
+  updateRack,
+  deleteRack,
 };

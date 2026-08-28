@@ -13,7 +13,7 @@ const axiosInstance = axios.create({
 // Add request interceptor to include token
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -30,8 +30,8 @@ axiosInstance.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       window.location.href = "/signin";
     }
     return Promise.reject(error);

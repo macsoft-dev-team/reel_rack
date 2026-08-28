@@ -14,7 +14,10 @@ const createComponent = async (req, res) => {
     const create = await componentService.createComponent(req.body);
     res.status(201).json(create);
   } catch (error) {
-    res.status(500).json({ message: "Failed to create component" });
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: `Component with Macsoft Part No '${req.body.macsoftPartNo}' already exists` });
+    }
+    res.status(500).json({ message: error.message || "Failed to create component" });
   }
 };
 
@@ -24,7 +27,10 @@ const updateComponent = async (req, res) => {
     const update = await componentService.updateComponent(id, req.body);
     res.status(200).json(update);
   } catch (error) {
-    res.status(500).json({ message: "Failed to update component" });
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: `Component with Macsoft Part No '${req.body.macsoftPartNo}' already exists` });
+    }
+    res.status(500).json({ message: error.message || "Failed to update component" });
   }
 };
 

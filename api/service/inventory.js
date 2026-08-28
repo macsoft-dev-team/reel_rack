@@ -4,42 +4,62 @@ const prisma = require("../prisma/client");
 exports.getAllInventory = async () => {
   const inventory = await prisma.inventory.findMany();
   
-  // Get all open reels
-  const openReels = await prisma.reel.findMany({
-    where: {
-      isopen: true  // Only get reels that are open
-    },
+  // Get all reels
+  const allReels = await prisma.reel.findMany({
     select: {
       id: true,
       componentid: true,
       lotnumber: true,
+      qtyinitial: true,
       qtyremaining: true,
       isopen: true,
       reelstatus: true
     }
   });
   
-  // Map component IDs to array of open reels
+  const reelMap = {};
   const openReelMap = {};
-  openReels.forEach(reel => {
-    // Match by componentid
-    if (!openReelMap[reel.componentid]) {
-      openReelMap[reel.componentid] = [];
+
+  allReels.forEach(reel => {
+    if (!reelMap[reel.componentid]) {
+      reelMap[reel.componentid] = [];
     }
-    openReelMap[reel.componentid].push({
+    reelMap[reel.componentid].push({
       id: reel.id,
       lotnumber: reel.lotnumber,
       qtyremaining: reel.qtyremaining,
-      reelstatus: reel.reelstatus
+      reelstatus: reel.reelstatus,
+      isopen: reel.isopen
     });
+
+    if (reel.isopen || reel.reelstatus === "OPEN") {
+      if (!openReelMap[reel.componentid]) {
+        openReelMap[reel.componentid] = [];
+      }
+      openReelMap[reel.componentid].push({
+        id: reel.id,
+        lotnumber: reel.lotnumber,
+        qtyremaining: reel.qtyremaining,
+        reelstatus: reel.reelstatus,
+        isopen: reel.isopen
+      });
+    }
   });
   
-  // Attach open reel info to inventory items
-  return inventory.map(item => ({
-    ...item,
-    openReels: openReelMap[item.code] || [],
-    hasOpenReel: (openReelMap[item.code] && openReelMap[item.code].length > 0) || false
-  }));
+  return inventory.map(item => {
+    const itemReels = reelMap[item.code] || [];
+    const itemOpenReels = openReelMap[item.code] || [];
+    const suggestedReel = itemOpenReels.length > 0 ? itemOpenReels[0] : (itemReels.length > 0 ? itemReels[0] : null);
+
+    return {
+      ...item,
+      reels: itemReels,
+      totalReelsCount: itemReels.length,
+      openReels: itemOpenReels,
+      hasOpenReel: itemOpenReels.length > 0,
+      suggestedReel
+    };
+  });
 };
 
 // GET by id
@@ -51,14 +71,24 @@ exports.getInventoryById = (id) => {
 
 // CREATE
 exports.createInventory = async (data) => {
-  const inventory = await prisma.inventory.create({ data });
+  const { performedByUserId, openReels, hasOpenReel, createdAt, updatedAt, id, ...rest } = data;
+
+  const payload = {
+    code: String(rest.code || "").trim(),
+    name: String(rest.name || "").trim(),
+    quantity: Number(rest.quantity) || 0,
+    minStock: Number(rest.minStock) || 0,
+    location: String(rest.location || "").trim(),
+  };
+
+  const inventory = await prisma.inventory.create({ data: payload });
   
   // Create transaction log
   try {
     await prisma.inventorytransaction.create({
       data: {
         transactionType: "COMPONENT_CREATED",
-        performedByUserId: data.performedByUserId || 1,
+        performedByUserId: Number(performedByUserId) || 1,
         transactionReason: `Inventory item created: ${inventory.code}`,
       },
     });
@@ -71,9 +101,18 @@ exports.createInventory = async (data) => {
 
 // UPDATE
 exports.updateInventory = async (id, data) => {
+  const { performedByUserId, openReels, hasOpenReel, createdAt, updatedAt, id: bodyId, ...rest } = data;
+
+  const payload = {};
+  if (rest.code !== undefined) payload.code = String(rest.code).trim();
+  if (rest.name !== undefined) payload.name = String(rest.name).trim();
+  if (rest.quantity !== undefined) payload.quantity = Number(rest.quantity) || 0;
+  if (rest.minStock !== undefined) payload.minStock = Number(rest.minStock) || 0;
+  if (rest.location !== undefined) payload.location = String(rest.location).trim();
+
   const inventory = await prisma.inventory.update({
     where: { id: Number(id) },
-    data,
+    data: payload,
   });
   
   // Create transaction log
@@ -81,7 +120,7 @@ exports.updateInventory = async (id, data) => {
     await prisma.inventorytransaction.create({
       data: {
         transactionType: "COMPONENT_UPDATED",
-        performedByUserId: data.performedByUserId || 1,
+        performedByUserId: Number(performedByUserId) || 1,
         transactionReason: `Inventory item updated: ${inventory.code}`,
       },
     });
@@ -106,7 +145,7 @@ exports.deleteInventory = async (id) => {
       data: {
         transactionType: "COMPONENT_DELETED",
         performedByUserId: 1,
-        transactionReason: `Inventory item deleted: ${existing.code}`,
+        transactionReason: `Inventory item deleted: ${existing ? existing.code : id}`,
       },
     });
   } catch (txErr) {

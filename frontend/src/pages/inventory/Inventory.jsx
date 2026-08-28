@@ -93,7 +93,7 @@ const InventoryPage = () => {
       fetchInventory();
     } catch (error) {
       console.error("Save failed", error);
-      toast.error("Failed to save inventory item");
+      toast.error(error.response?.data?.message || "Failed to save inventory item");
     }
   };
 

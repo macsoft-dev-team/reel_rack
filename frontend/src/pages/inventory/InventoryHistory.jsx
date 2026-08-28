@@ -15,7 +15,7 @@ export default function InventoryHistory() {
   const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const storedUserRaw = localStorage.getItem("user");
+  const storedUserRaw = sessionStorage.getItem("user");
   let currentUser = {};
 
   try {

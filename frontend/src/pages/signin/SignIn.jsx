@@ -27,8 +27,8 @@ export default function SignIn() {
       const res = await axios.post(API_URL, form);
 
       if (res.data.success) {
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
+        sessionStorage.setItem("token", res.data.token);
+        sessionStorage.setItem("user", JSON.stringify(res.data.user));
         navigate("/component");
       }
     } catch (err) {
@@ -42,7 +42,7 @@ export default function SignIn() {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-cover bg-center"
+      className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 bg-cover bg-center"
       style={{ backgroundImage: `url(${bg})` }}
     >
       {/* Overlay */}
@@ -55,25 +55,24 @@ export default function SignIn() {
           w-full 
           max-w-sm 
           sm:max-w-md 
-          lg:max-w-lg
           bg-white/10 backdrop-blur-xl border border-white/20
-          rounded-2xl sm:rounded-3xl
+          rounded-2xl
           shadow-2xl
-          p-6 sm:p-8 lg:p-10
+          p-6 sm:p-8
         "
       >
         {/* Heading */}
-        <h1 className="text-2xl sm:text-3xl font-bold text-center text-white mb-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-center text-white mb-1 tracking-tight">
           Welcome Back
         </h1>
-        <p className="text-center text-gray-300 text-sm sm:text-base mb-6 sm:mb-8">
+        <p className="text-center text-gray-300 text-xs sm:text-sm mb-5 sm:mb-6">
           Sign in to continue
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Employee ID */}
           <div className="relative">
-            <User className="absolute left-4 top-3.5 text-gray-400" size={18} />
+            <User className="absolute left-3.5 top-3 text-gray-400" size={16} />
             <input
               type="text"
               name="employeeId"
@@ -81,12 +80,12 @@ export default function SignIn() {
               value={form.employeeId}
               onChange={handleChange}
               className="
-                w-full pl-11 pr-4 py-2.5 sm:py-3
-                rounded-lg sm:rounded-xl
+                w-full pl-10 pr-4 py-2.5
+                rounded-xl
                 bg-white/20 text-white placeholder-gray-300
                 border border-white/30
-                text-sm sm:text-base
-                focus:outline-none focus:ring-2 focus:ring-blue-500
+                text-xs sm:text-sm
+                focus:outline-none focus:ring-2 focus:ring-blue-400/50
               "
               required
             />
@@ -94,7 +93,7 @@ export default function SignIn() {
 
           {/* Password */}
           <div className="relative">
-            <Lock className="absolute left-4 top-3.5 text-gray-400" size={18} />
+            <Lock className="absolute left-3.5 top-3 text-gray-400" size={16} />
             <input
               type={showPassword ? "text" : "password"}
               name="password"
@@ -102,21 +101,21 @@ export default function SignIn() {
               value={form.password}
               onChange={handleChange}
               className="
-                w-full pl-11 pr-11 py-2.5 sm:py-3
-                rounded-lg sm:rounded-xl
+                w-full pl-10 pr-10 py-2.5
+                rounded-xl
                 bg-white/20 text-white placeholder-gray-300
                 border border-white/30
-                text-sm sm:text-base
-                focus:outline-none focus:ring-2 focus:ring-blue-500
+                text-xs sm:text-sm
+                focus:outline-none focus:ring-2 focus:ring-blue-400/50
               "
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-3.5 text-gray-300 hover:text-white"
+              className="absolute right-3.5 top-3 text-gray-300 hover:text-white"
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
 
@@ -125,7 +124,7 @@ export default function SignIn() {
             <div
               className="
                 bg-red-500/20 border border-red-500/40
-                text-red-300 text-xs sm:text-sm
+                text-red-300 text-xs
                 px-3 py-2 rounded-lg animate-shake
               "
             >
@@ -138,21 +137,21 @@ export default function SignIn() {
             type="submit"
             disabled={loading}
             className="
-              w-full py-2.5 sm:py-3
-              rounded-lg sm:rounded-xl
-              text-sm sm:text-lg font-semibold text-white
+              w-full py-2.5
+              rounded-xl
+              text-xs sm:text-sm font-semibold text-white
               bg-gradient-to-r from-blue-500 to-indigo-600
               hover:from-blue-600 hover:to-indigo-700
-              shadow-lg hover:shadow-xl
-              transition-all duration-300
+              shadow-md hover:shadow-lg
+              transition-all duration-200
               flex items-center justify-center gap-2
-              disabled:opacity-60
+              disabled:opacity-60 cursor-pointer active:scale-98
             "
           >
             {loading ? (
               <>
-                <Loader2 className="animate-spin" size={18} />
-                Signing In...
+                <Loader2 className="animate-spin" size={16} />
+                <span>Signing In...</span>
               </>
             ) : (
               "Sign In"
