@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
+  LayoutDashboard,
   Boxes,
   Layers,
   History,
@@ -10,6 +11,7 @@ import {
   X,
   Factory,
   Film,
+  Settings,
   ChevronRight,
   PanelLeftClose,
   PanelLeft,
@@ -20,6 +22,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, mobileOpen, set
   const location = useLocation();
 
   const navItems = [
+    { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { label: "Pick List", path: "/picklist", icon: ListChecks },
     { label: "Components", path: "/component", icon: Boxes },
     { label: "Racks", path: "/racks", icon: Layers },
@@ -29,6 +32,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, mobileOpen, set
     { label: "User", path: "/user", icon: Users },
     { label: "Audit Log", path: "/auditlog", icon: History },
     { label: "Manufacturer", path: "/manufecturer", icon: Factory },
+    { label: "Settings", path: "/settings", icon: Settings },
   ];
 
   return (

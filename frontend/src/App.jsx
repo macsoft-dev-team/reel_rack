@@ -17,6 +17,7 @@ import Manufacturer from "./pages/manufacturer/Manufacturer";
 import Reel from "./pages/reel/Reel";
 import InventoryHistory from "./pages/inventory/InventoryHistory";
 import AuditLog from "./pages/audit/AuditLog";
+import Settings from "./pages/settings/Settings";
 function App() {
   return (
     <BrowserRouter>
@@ -26,6 +27,7 @@ function App() {
       <Routes>
         <Route path="/" element={<SignIn />} />
         <Route path="" element={<Layout />}>
+          <Route path="dashboard" element={<ReelRackDashboard />} />
           <Route path="component" element={<Component />} />
           <Route path="racks" element={<Racks />} />
           <Route path="reelhistory" element={<ReelHistory />} />
@@ -33,12 +35,12 @@ function App() {
           <Route path="picklist" element={<Picklist />} />
           <Route path="user" element={<User />} />
           <Route path="notification" element={<Notification />} />
-          <Route path="dashboard" element={<ReelRackDashboard />} />
           <Route path="manufecturer" element={<Manufacturer />} />
           <Route path="reel" element={<Reel />} />
-          <Route path="inventoryhistory" element={<InventoryHistory /> } />
-          <Route path="auditlog" element={<ReelHistory /> } />
- 
+          <Route path="inventoryhistory" element={<InventoryHistory />} />
+          <Route path="auditlog" element={<ReelHistory />} />
+          <Route path="settings" element={<Settings />} />
+
           {/* <Route path="rackcreation" element={<RackCreation />} /> */}
           {/* <Route path="reelstorage" element={<Reelstorage />} /> */}
         </Route>

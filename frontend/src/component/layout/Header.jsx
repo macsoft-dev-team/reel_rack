@@ -14,6 +14,7 @@ const ROUTE_NAMES = {
   "/auditlog": "Audit Logs",
   "/manufecturer": "Manufacturers",
   "/reelhistory": "Reel Action Logs",
+  "/settings": "System Settings",
 };
 
 export default function Header({ isCollapsed, onToggleSidebar, onMobileToggle }) {

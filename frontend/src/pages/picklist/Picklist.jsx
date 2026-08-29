@@ -40,6 +40,30 @@ export default function Picklist() {
   const [operators, setOperators] = useState([]);
   const [components, setComponents] = useState([]);
 
+  // FILTER PICKLISTS: Show all for Super Admin, and only assigned picklists for other users
+  const filteredPicklists = picklists.filter((pl) => {
+    if (isSuperAdmin) return true;
+    if (!pl || !pl.operator) return false;
+
+    const opLower = pl.operator.toString().trim().toLowerCase();
+    const currentNameLower = (currentUser.name || "").toString().trim().toLowerCase();
+    const currentEmpIdLower = (currentUser.employeeId || "").toString().trim().toLowerCase();
+    const currentIdStr = (currentUser.id || "").toString().trim();
+
+    if (currentNameLower && opLower === currentNameLower) return true;
+    if (currentEmpIdLower && opLower === currentEmpIdLower) return true;
+    if (currentIdStr && opLower === currentIdStr) return true;
+
+    if (opLower === "operator_1" || opLower === "operator 1") {
+      if (currentEmpIdLower === "op-001" || currentNameLower === "kumar") return true;
+    }
+    if (opLower === "operator_2" || opLower === "operator 2") {
+      if (currentEmpIdLower === "op-002" || currentNameLower === "arun") return true;
+    }
+
+    return false;
+  });
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -376,7 +400,7 @@ export default function Picklist() {
   return (
     <div className="w-full">
       <ReusableTable
-        data={picklists}
+        data={filteredPicklists}
         columns={columns}
         onAdd={canCreate ? openCreate : undefined}
         addLabel="Add Picklist"

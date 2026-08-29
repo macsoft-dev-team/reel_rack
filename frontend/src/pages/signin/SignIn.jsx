@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { User, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import axiosInstance from "../../api/axiosConfig";
+import { User, Lock, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import bg from "../../assets/bg.jpeg";
-
-const API_URL = "http://localhost:3000/api/signin";
+import logo from "../../assets/Logo.jpg";
 
 export default function SignIn() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ employeeId: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [keepLogged, setKeepLogged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,7 +24,7 @@ export default function SignIn() {
     setError("");
 
     try {
-      const res = await axios.post(API_URL, form);
+      const res = await axiosInstance.post("/signin", form);
 
       if (res.data.success) {
         sessionStorage.setItem("token", res.data.token);
@@ -41,140 +41,171 @@ export default function SignIn() {
   };
 
   return (
-    <div
-      className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 bg-cover bg-center"
-      style={{ backgroundImage: `url(${bg})` }}
-    >
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-indigo-900/60 to-purple-900/60"></div>
-
-      {/* Card */}
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-slate-50 font-sans">
+      {/* LEFT SIDE - BRANDING & BACKGROUND */}
       <div
-        className="
-          relative z-10 
-          w-full 
-          max-w-sm 
-          sm:max-w-md 
-          bg-white/10 backdrop-blur-xl border border-white/20
-          rounded-2xl
-          shadow-2xl
-          p-6 sm:p-8
-        "
+        className="w-full lg:w-1/2 min-h-[340px] lg:min-h-screen relative flex flex-col justify-between items-center p-8 sm:p-12 overflow-hidden bg-cover bg-center"
+        style={{ backgroundImage: `url(${bg})` }}
       >
-        {/* Heading */}
-        <h1 className="text-xl sm:text-2xl font-bold text-center text-white mb-1 tracking-tight">
-          Welcome Back
-        </h1>
-        <p className="text-center text-gray-300 text-xs sm:text-sm mb-5 sm:mb-6">
-          Sign in to continue
-        </p>
+        {/* Dark / Glass Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/80 via-slate-900/65 to-blue-950/75 backdrop-blur-[2px]"></div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Employee ID */}
-          <div className="relative">
-            <User className="absolute left-3.5 top-3 text-gray-400" size={16} />
-            <input
-              type="text"
-              name="employeeId"
-              placeholder="Employee ID"
-              value={form.employeeId}
-              onChange={handleChange}
-              className="
-                w-full pl-10 pr-4 py-2.5
-                rounded-xl
-                bg-white/20 text-white placeholder-gray-300
-                border border-white/30
-                text-xs sm:text-sm
-                focus:outline-none focus:ring-2 focus:ring-blue-400/50
-              "
-              required
+        {/* Subtle Grid Overlay */}
+        <div
+          className="absolute inset-0 opacity-15 pointer-events-none"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px)`,
+            backgroundSize: `36px 36px`,
+          }}
+        ></div>
+
+        {/* Top Spacer */}
+        <div className="relative z-10 hidden lg:block"></div>
+
+        {/* Center Content: Logo & Titles */}
+        <div className="relative z-10 my-auto flex flex-col items-center text-center">
+          {/* Logo Container Card */}
+          <div className="bg-white p-5 sm:p-6 rounded-3xl shadow-2xl border border-white/20 flex items-center justify-center w-28 h-28 sm:w-36 sm:h-36 mb-6 transition-transform duration-300 hover:scale-105">
+            <img
+              src={logo}
+              alt="Macsoft Logo"
+              className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-xl"
             />
           </div>
 
-          {/* Password */}
-          <div className="relative">
-            <Lock className="absolute left-3.5 top-3 text-gray-400" size={16} />
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={handleChange}
-              className="
-                w-full pl-10 pr-10 py-2.5
-                rounded-xl
-                bg-white/20 text-white placeholder-gray-300
-                border border-white/30
-                text-xs sm:text-sm
-                focus:outline-none focus:ring-2 focus:ring-blue-400/50
-              "
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3.5 top-3 text-gray-300 hover:text-white"
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
+          {/* Title */}
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-wider uppercase drop-shadow-md">
+            MACSOFT
+          </h1>
 
-          {/* Error Message */}
-          {error && (
-            <div
-              className="
-                bg-red-500/20 border border-red-500/40
-                text-red-300 text-xs
-                px-3 py-2 rounded-lg animate-shake
-              "
-            >
-              {error}
-            </div>
-          )}
+          {/* Subtitle */}
+          <p className="text-blue-400 font-bold text-xs sm:text-sm tracking-[0.2em] uppercase mt-2 drop-shadow-sm">
+            REEL RACK MANAGEMENT SYSTEM
+          </p>
+        </div>
 
-          {/* Sign In Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="
-              w-full py-2.5
-              rounded-xl
-              text-xs sm:text-sm font-semibold text-white
-              bg-gradient-to-r from-blue-500 to-indigo-600
-              hover:from-blue-600 hover:to-indigo-700
-              shadow-md hover:shadow-lg
-              transition-all duration-200
-              flex items-center justify-center gap-2
-              disabled:opacity-60 cursor-pointer active:scale-98
-            "
-          >
-            {loading ? (
-              <>
-                <Loader2 className="animate-spin" size={16} />
-                <span>Signing In...</span>
-              </>
-            ) : (
-              "Sign In"
-            )}
-          </button>
-        </form>
+        {/* Bottom Footer */}
+        <div className="relative z-10 text-slate-400 text-xs font-mono tracking-tight text-center mt-6 lg:mt-0">
+          © 2026 Macsoft Electronic Controls
+        </div>
       </div>
 
-      {/* Shake Animation */}
-      <style>
-        {`
-          @keyframes shake {
-            0% { transform: translateX(0); }
-            25% { transform: translateX(-4px); }
-            50% { transform: translateX(4px); }
-            75% { transform: translateX(-4px); }
-            100% { transform: translateX(0); }
-          }
-          .animate-shake {
-            animation: shake 0.3s ease-in-out;
-          }
-        `}
-      </style>
+      {/* RIGHT SIDE - LOGIN FORM */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-white min-h-[calc(100vh-340px)] lg:min-h-screen">
+        <div className="w-full max-w-md space-y-7">
+          {/* Header */}
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Welcome to Macsoft RRMS
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-2">
+              Please enter your credentials to access your organization portal.
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Employee ID */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                Employee ID
+              </label>
+              <div className="relative rounded-xl bg-[#edf2fe] border border-blue-100 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-400/20 transition-all">
+                <User
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
+                <input
+                  type="text"
+                  name="employeeId"
+                  placeholder="Enter Employee ID"
+                  value={form.employeeId}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-3 bg-transparent text-slate-900 placeholder-slate-400 text-sm font-medium focus:outline-none"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  Password
+                </label>
+                <a
+                  href="#"
+                  onClick={(e) => e.preventDefault()}
+                  className="text-xs text-blue-600 font-medium hover:underline"
+                >
+                  Forgot password?
+                </a>
+              </div>
+              <div className="relative rounded-xl bg-[#edf2fe] border border-blue-100 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-400/20 transition-all">
+                <Lock
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-10 py-3 bg-transparent text-slate-900 placeholder-slate-400 text-sm font-medium focus:outline-none"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Keep me logged in */}
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs font-medium text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={keepLogged}
+                  onChange={(e) => setKeepLogged(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                />
+                <span>Keep me logged in</span>
+              </label>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-medium px-4 py-3 rounded-xl animate-shake">
+                {error}
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Signing In...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck size={18} />
+                  <span>Sign In</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
