@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { PanelLeft, PanelLeftClose, Menu, ShieldCheck, LogOut } from "lucide-react";
 
 const ROUTE_NAMES = {
-  "/dashboard": "Rack Hub Dashboard",
+  "/dashboard": "Dashboard",
   "/picklist": "Pick List Management",
   "/component": "Components Catalog",
   "/racks": "Rack Storage & Cells",

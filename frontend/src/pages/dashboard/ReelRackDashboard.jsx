@@ -1,76 +1,74 @@
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Plus,
-  X,
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  Package,
-  Layers,
-  ListChecks,
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Plus, Layers, Package, ListChecks, ArrowRight } from "lucide-react";
+import axiosInstance from "../../api/axiosConfig";
 
 export default function ReelRackDashboard() {
-  const [picklists, setPicklists] = useState(["PL-1023", "PL-1024", "PL-1025"]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showToast, setShowToast] = useState(false);
+  const navigate = useNavigate();
+  const [picklists, setPicklists] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleCreate = async () => {
-    if (!inputValue.trim()) {
-      setError("Required: Please enter a Picklist ID.");
-      return;
+  // User Session Data
+  const storedUserRaw = sessionStorage.getItem("user");
+  let currentUser = {};
+  try {
+    currentUser = storedUserRaw ? JSON.parse(storedUserRaw) : {};
+  } catch (err) {
+    console.error("User parse error:", err);
+  }
+
+  const userRole = (currentUser.role || "").toUpperCase().replace(/_/g, "");
+  const isSuperAdmin = userRole === "SUPERADMIN";
+
+  // Fetch real picklists from API
+  const fetchPicklists = async () => {
+    try {
+      setLoading(true);
+      const res = await axiosInstance.get("/picklist");
+      setPicklists(res.data || []);
+    } catch (err) {
+      console.error("Error fetching dashboard picklists:", err);
+    } finally {
+      setLoading(false);
     }
-
-    setIsSubmitting(true);
-
-    // Simulate Network Delay
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-
-    setPicklists([inputValue.toUpperCase(), ...picklists]);
-    setIsSubmitting(false);
-    setIsModalOpen(false);
-    setInputValue("");
-    setError("");
-
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
   };
 
+  useEffect(() => {
+    fetchPicklists();
+  }, []);
+
+  // Filter picklists role-wise (SuperAdmin sees all, others see assigned)
+  const filteredPicklists = picklists.filter((pl) => {
+    if (isSuperAdmin) return true;
+    if (!pl || !pl.operator) return false;
+
+    const opLower = pl.operator.toString().trim().toLowerCase();
+    const currentNameLower = (currentUser.name || "").toString().trim().toLowerCase();
+    const currentEmpIdLower = (currentUser.employeeId || "").toString().trim().toLowerCase();
+    const currentIdStr = (currentUser.id || "").toString().trim();
+
+    if (currentNameLower && opLower === currentNameLower) return true;
+    if (currentEmpIdLower && opLower === currentEmpIdLower) return true;
+    if (currentIdStr && opLower === currentIdStr) return true;
+
+    if (opLower === "operator_1" || opLower === "operator 1") {
+      if (currentEmpIdLower === "op-001" || currentNameLower === "kumar") return true;
+    }
+    if (opLower === "operator_2" || opLower === "operator 2") {
+      if (currentEmpIdLower === "op-002" || currentNameLower === "arun") return true;
+    }
+
+    return false;
+  });
+
   return (
-    <div className="w-full space-y-6">
-      {/* TOAST NOTIFICATION */}
-      <AnimatePresence>
-        {showToast && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 text-sm font-semibold"
-          >
-            <CheckCircle2 className="text-emerald-400" size={20} />
-            <span>Picklist synced to warehouse successfully.</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* DASHBOARD HEADER */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Rack Hub Dashboard
-          </h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">
-            System Status: <span className="text-emerald-600 font-bold">Optimal (98%)</span> • Operational Overview
-          </p>
-        </div>
-
+    <div className="w-full space-y-6 font-sans">
+      {/* TOP ACTIONS HEADER */}
+      <div className="flex justify-end">
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-xs active:scale-95 cursor-pointer"
+          onClick={() => navigate("/picklist")}
+          className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer"
         >
           <Plus size={18} />
           <span>Create New Task</span>
@@ -100,7 +98,7 @@ export default function ReelRackDashboard() {
             />
             <StatCard
               title="Active Tasks"
-              value={picklists.length}
+              value={filteredPicklists.length}
               unit="Picklists"
               icon={<ListChecks size={20} />}
               iconBg="bg-[#FFF1F1]"
@@ -151,111 +149,40 @@ export default function ReelRackDashboard() {
             <div className="p-5 border-b border-slate-100 flex justify-between items-center">
               <h2 className="font-bold text-slate-900 text-base">Active Picklists</h2>
               <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
-                {picklists.length} Total
+                {filteredPicklists.length} Total
               </span>
             </div>
 
             <div className="p-3 overflow-y-auto max-h-[420px] space-y-2 flex-1">
-              <AnimatePresence initial={false}>
-                {picklists.map((pl, i) => (
-                  <motion.div
-                    key={pl}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="p-4 bg-slate-50 rounded-xl flex justify-between items-center border border-slate-200/70 hover:border-blue-300 hover:bg-blue-50/40 transition-all group"
+              {loading ? (
+                <div className="p-6 text-center text-xs text-slate-400">Loading picklists...</div>
+              ) : filteredPicklists.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400 font-medium">
+                  No active picklists assigned to you.
+                </div>
+              ) : (
+                filteredPicklists.map((pl) => (
+                  <div
+                    key={pl.id || pl.code}
+                    onClick={() => navigate("/picklist")}
+                    className="p-4 bg-slate-50 rounded-xl flex justify-between items-center border border-slate-200/70 hover:border-blue-300 hover:bg-blue-50/40 transition-all cursor-pointer group"
                   >
                     <div>
-                      <p className="text-sm font-bold text-slate-900">{pl}</p>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                        Priority: High
+                      <p className="text-sm font-bold text-slate-900">
+                        {pl.code || `PL-${pl.id}`} - {pl.name}
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
+                        Operator: <span className="text-slate-700">{pl.operator}</span> • Status: <span className="text-blue-600 font-bold">{pl.status}</span>
                       </p>
                     </div>
-                    {i === 0 && (
-                      <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-md font-bold shadow-2xs">
-                        NEW
-                      </span>
-                    )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                    <ArrowRight size={16} className="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-2" />
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* CREATE PICKLIST MODAL */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !isSubmitting && setIsModalOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"
-            />
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border border-slate-200"
-            >
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
-              >
-                <X size={18} />
-              </button>
-
-              <h2 className="text-xl font-bold text-slate-900 mb-1">Create Picklist Task</h2>
-              <p className="text-slate-500 text-xs mb-6 font-medium">
-                Enter a unique picklist ID to initialize warehouse syncing.
-              </p>
-
-              <div className="space-y-4">
-                <div>
-                  <input
-                    disabled={isSubmitting}
-                    autoFocus
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => {
-                      setInputValue(e.target.value);
-                      setError("");
-                    }}
-                    placeholder="e.g. PL-8820"
-                    className={`w-full p-3.5 bg-slate-50 rounded-xl border text-sm font-semibold transition-all outline-none placeholder:text-slate-400 ${
-                      error
-                        ? "border-red-400 focus:ring-2 focus:ring-red-100"
-                        : "border-slate-200 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
-                    }`}
-                  />
-                  {error && (
-                    <p className="text-red-600 text-xs font-semibold mt-2 flex items-center gap-1">
-                      <AlertCircle size={14} /> {error}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  disabled={isSubmitting}
-                  onClick={handleCreate}
-                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-xs disabled:bg-slate-200 disabled:text-slate-400 cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="animate-spin" size={18} />
-                      <span>Initializing Task...</span>
-                    </>
-                  ) : (
-                    "Initialize Picklist"
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
