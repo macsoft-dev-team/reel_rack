@@ -12,6 +12,17 @@ const capitalize = (str) =>
   str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
 
 export default function User() {
+  const storedUserRaw = sessionStorage.getItem("user");
+  let currentUser = {};
+  try {
+    currentUser = storedUserRaw ? JSON.parse(storedUserRaw) : {};
+  } catch (err) {
+    console.error("User parse error:", err);
+  }
+
+  const userRole = (currentUser.role || "").toUpperCase().replace(/_/g, "");
+  const isSuperAdmin = userRole === "SUPERADMIN";
+
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -164,10 +175,10 @@ export default function User() {
       <ReusableTable
         columns={columns}
         data={users}
-        onAdd={openAddModal}
+        onAdd={isSuperAdmin ? openAddModal : undefined}
         addLabel="Add User"
-        onEdit={openEditModal}
-        onDelete={handleDelete}
+        onEdit={isSuperAdmin ? openEditModal : undefined}
+        onDelete={isSuperAdmin ? handleDelete : undefined}
         actionIcon={
           <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
         }
@@ -177,7 +188,7 @@ export default function User() {
       />
 
       {/* MODAL */}
-      {isModalOpen && (
+      {isModalOpen && isSuperAdmin && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
             {/* Header */}
@@ -235,26 +246,28 @@ export default function User() {
                   )}
                 </div>
 
-                {/* Password */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    {isEditMode
-                      ? "New Password (leave blank to keep current)"
-                      : "Password"}
-                  </label>
-                  <input
-                    placeholder={
-                      isEditMode ? "Enter new password..." : "Create a password"
-                    }
-                    type="password"
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow bg-white"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
-                    required={!isEditMode}
-                  />
-                </div>
+                {/* Password - ONLY VISIBLE TO SUPER ADMIN */}
+                {isSuperAdmin && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      {isEditMode
+                        ? "New Password (leave blank to keep current)"
+                        : "Password"}
+                    </label>
+                    <input
+                      placeholder={
+                        isEditMode ? "Enter new password..." : "Create a password"
+                      }
+                      type="password"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow bg-white"
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      required={!isEditMode}
+                    />
+                  </div>
+                )}
 
                 {/* Role */}
                 <div>
