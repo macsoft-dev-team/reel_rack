@@ -22,6 +22,8 @@ export default function User() {
 
   const userRole = (currentUser.role || "").toUpperCase().replace(/_/g, "");
   const isSuperAdmin = userRole === "SUPERADMIN";
+  const isAdmin = userRole === "ADMIN";
+  const canManageUser = isSuperAdmin || isAdmin;
 
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -175,10 +177,10 @@ export default function User() {
       <ReusableTable
         columns={columns}
         data={users}
-        onAdd={isSuperAdmin ? openAddModal : undefined}
+        onAdd={canManageUser ? openAddModal : undefined}
         addLabel="Add User"
-        onEdit={isSuperAdmin ? openEditModal : undefined}
-        onDelete={isSuperAdmin ? handleDelete : undefined}
+        onEdit={canManageUser ? openEditModal : undefined}
+        onDelete={canManageUser ? handleDelete : undefined}
         actionIcon={
           <Edit className="w-4 h-4 text-blue-600 hover:text-blue-800 transition-colors" />
         }
@@ -188,7 +190,7 @@ export default function User() {
       />
 
       {/* MODAL */}
-      {isModalOpen && isSuperAdmin && (
+      {isModalOpen && canManageUser && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
             {/* Header */}
