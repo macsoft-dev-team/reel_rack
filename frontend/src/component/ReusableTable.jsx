@@ -18,6 +18,7 @@ export default function ReusableTable({
   onBulkUpload,
   bulkUploadLabel = "Bulk Upload",
   headerTitle = null,
+  getRowClassName = null,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchValue, setSearchValue] = useState("");
@@ -115,16 +116,18 @@ export default function ReusableTable({
         <table className="min-w-[700px] w-full text-sm text-left">
           <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
             <tr>
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`py-3.5 px-4 text-center font-bold text-xs uppercase tracking-wider text-slate-600 ${
-                    col.wrap ? "whitespace-normal" : "whitespace-nowrap"
-                  } ${col.className || ""}`}
-                >
-                  {col.label}
-                </th>
-              ))}
+              {columns.map((col) => {
+                const alignClass = col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "text-left";
+                return (
+                  <th
+                    key={col.key}
+                    className={`py-3.5 px-4 ${alignClass} font-bold text-xs uppercase tracking-wider text-slate-600 ${col.wrap ? "whitespace-normal" : "whitespace-nowrap"
+                      } ${col.className || ""}`}
+                  >
+                    {col.label}
+                  </th>
+                );
+              })}
 
               {(onEdit || onDelete || onTick) && (
                 <th className="py-3.5 px-4 text-center font-bold text-xs uppercase tracking-wider text-slate-600 whitespace-nowrap">
@@ -136,60 +139,68 @@ export default function ReusableTable({
 
           <tbody className="divide-y divide-slate-100">
             {paginatedData.length ? (
-              paginatedData.map((row, index) => (
-                <tr
-                  key={row.id || index}
-                  className="hover:bg-blue-50/30 transition-colors duration-150"
-                >
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className={`py-3.5 px-4 text-center font-medium text-sm text-slate-700 ${
-                        col.wrap
-                          ? "whitespace-normal wrap-break-word text-left"
-                          : "whitespace-nowrap"
-                      } ${col.className || ""}`}
-                    >
-                      {renderCellValue(col, row)}
-                    </td>
-                  ))}
+              paginatedData.map((row, index) => {
+                const isOutOfStock = row.quantity === 0 || row.reelQty === 0;
+                const rowClass = getRowClassName
+                  ? getRowClassName(row, index)
+                  : isOutOfStock
+                    ? "bg-red-50/70 hover:bg-red-100/70 border-l-4 border-l-red-500 transition-colors duration-150"
+                    : "hover:bg-blue-50/30 transition-colors duration-150";
 
-                  {(onEdit || onDelete || onTick) && (
-                    <td className="py-3.5 px-4">
-                      <div className="flex justify-center items-center gap-1.5 flex-wrap">
-                        {onEdit && (
-                          <button
-                            onClick={() => onEdit(row)}
-                            title="Edit"
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            {actionIcon}
-                          </button>
-                        )}
+                return (
+                  <tr key={row.id || index} className={rowClass}>
+                    {columns.map((col) => {
+                      const alignClass = col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "text-left";
+                      return (
+                        <td
+                          key={col.key}
+                          className={`py-3.5 px-4 ${alignClass} font-medium text-sm text-slate-700 ${col.wrap
+                              ? "whitespace-normal wrap-break-word text-left"
+                              : "whitespace-nowrap"
+                            } ${col.className || ""}`}
+                        >
+                          {renderCellValue(col, row)}
+                        </td>
+                      );
+                    })}
 
-                        {onDelete && (
-                          <button
-                            onClick={() => onDelete(row)}
-                            title="Delete"
-                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            {deleteIcon}
-                          </button>
-                        )}
+                    {(onEdit || onDelete || onTick) && (
+                      <td className="py-3.5 px-4">
+                        <div className="flex justify-center items-center gap-1.5 flex-wrap">
+                          {onEdit && (
+                            <button
+                              onClick={() => onEdit(row)}
+                              title="Edit"
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              {actionIcon}
+                            </button>
+                          )}
 
-                        {onTick && (
-                          <button
-                            onClick={() => onTick(row)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                          >
-                            {tickIcon}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))
+                          {onDelete && (
+                            <button
+                              onClick={() => onDelete(row)}
+                              title="Delete"
+                              className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              {deleteIcon}
+                            </button>
+                          )}
+
+                          {onTick && (
+                            <button
+                              onClick={() => onTick(row)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                            >
+                              {tickIcon}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td
@@ -231,11 +242,10 @@ export default function ReusableTable({
               <button
                 key={i}
                 onClick={() => goToPage(i + 1)}
-                className={`w-8 h-8 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  currentPage === i + 1
+                className={`w-8 h-8 rounded-lg text-xs font-semibold transition cursor-pointer ${currentPage === i + 1
                     ? "bg-blue-600 text-white shadow-xs"
                     : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 {i + 1}
               </button>

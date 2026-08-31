@@ -129,6 +129,7 @@ model PickListItem {
   componentName String
 
   availableQty Int
+  requiredQty  Int    @default(0)
   usedQty      Int    @default(0)
   location     String
 }

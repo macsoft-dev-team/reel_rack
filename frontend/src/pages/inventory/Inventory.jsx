@@ -118,9 +118,14 @@ const InventoryPage = () => {
     {
       key: "quantity",
       label: "Qty",
-      render: (row) => (
-        <span className="font-semibold text-slate-700">{row.quantity}</span>
-      ),
+      render: (row) =>
+        row.quantity === 0 ? (
+          <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-red-100 text-red-700 border border-red-200 inline-flex items-center gap-1">
+            <XCircle size={12} /> 0
+          </span>
+        ) : (
+          <span className="font-semibold text-slate-700">{row.quantity}</span>
+        ),
     },
     { key: "minStock", label: "Min Stock" },
     {

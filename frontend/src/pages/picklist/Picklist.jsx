@@ -129,8 +129,34 @@ export default function Picklist() {
       toast.error("Please fill in all required fields (Name and Operator)");
       return;
     }
+
+    // Check for duplicate picklist name
+    const existingName = picklists.find(
+      (pl) => (pl.name || "").trim().toLowerCase() === formData.name.trim().toLowerCase()
+    );
+    if (existingName) {
+      toast.error(`Picklist with name '${formData.name.trim()}' already exists`);
+      return;
+    }
+
     if (!items.length) {
       toast.error("Please add at least one component to the picklist");
+      return;
+    }
+
+    // Check for 0 available quantity item
+    const zeroStockItem = items.find((i) => Number(i.availableQty) <= 0);
+    if (zeroStockItem) {
+      toast.error(`Cannot create picklist: Component '${zeroStockItem.code}' has no available quantity`);
+      return;
+    }
+
+    // Check for required quantity exceeding available quantity
+    const invalidReqItem = items.find((i) => Number(i.requiredQty) > Number(i.availableQty));
+    if (invalidReqItem) {
+      toast.error(
+        `Required quantity (${invalidReqItem.requiredQty}) exceeds available quantity (${invalidReqItem.availableQty}) for '${invalidReqItem.code}'`
+      );
       return;
     }
 
@@ -149,6 +175,7 @@ export default function Picklist() {
           componentCode: i.code,
           componentName: i.name,
           availableQty: i.availableQty,
+          requiredQty: Number(i.requiredQty) || 0,
           usedQty: 0,
           location: i.location,
         })),
@@ -202,7 +229,9 @@ export default function Picklist() {
         id: i.id,
         componentName: i.componentName,
         availableQty: i.availableQty,
+        requiredQty: i.requiredQty || 0,
         usedQty: i.usedQty,
+        openReelSuggestion: i.openReelSuggestion,
       })),
     );
     setIsEditOpen(true);
@@ -292,8 +321,9 @@ export default function Picklist() {
 
     const matches = components.filter(
       (c) =>
-        c.code.toLowerCase().includes(val.toLowerCase()) ||
-        c.name.toLowerCase().includes(val.toLowerCase()),
+        (c.code.toLowerCase().includes(val.toLowerCase()) ||
+          c.name.toLowerCase().includes(val.toLowerCase())) &&
+        Number(c.quantity) > 0,
     );
 
     matches.sort((a, b) => {
@@ -313,6 +343,10 @@ export default function Picklist() {
 
   const addItem = () => {
     if (!selectedComponent) return;
+    if (Number(selectedComponent.quantity) <= 0) {
+      toast.error(`Component '${selectedComponent.code}' is out of stock (0 available)`);
+      return;
+    }
     if (items.some((i) => i.id === selectedComponent.id)) return;
 
     setItems([
@@ -322,12 +356,27 @@ export default function Picklist() {
         code: selectedComponent.code,
         name: selectedComponent.name,
         availableQty: selectedComponent.quantity,
+        requiredQty: 1,
         location: selectedComponent.location,
+        openReelSuggestion:
+          selectedComponent.suggestedReel ||
+          (selectedComponent.openReels && selectedComponent.openReels[0]) ||
+          null,
       },
     ]);
 
     setSearch("");
     setSelectedComponent(null);
+  };
+
+  const updateItemRequiredQty = (idx, val) => {
+    setItems((prev) =>
+      prev.map((item, index) =>
+        index === idx
+          ? { ...item, requiredQty: Math.max(0, Number(val)) }
+          : item,
+      ),
+    );
   };
 
   const removeItem = (idx) => {
@@ -533,9 +582,11 @@ export default function Picklist() {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase text-xs font-semibold">
                     <tr>
-                      <th className="px-4 py-3">Component</th>
-                      <th className="px-4 py-3 text-center">Available Qty</th>
-                      <th className="px-4 py-3">Location</th>
+                      <th className="px-4 py-3 text-left">Component</th>
+                      <th className="px-4 py-3 text-left">Available Qty</th>
+                      <th className="px-4 py-3 text-left">Required Qty</th>
+                      <th className="px-4 py-3 text-left">Suggested Reel</th>
+                      <th className="px-4 py-3 text-left">Location</th>
                       <th className="px-4 py-3 text-center w-16">Action</th>
                     </tr>
                   </thead>
@@ -543,39 +594,72 @@ export default function Picklist() {
                     {items.length === 0 ? (
                       <tr>
                         <td
-                          colSpan="4"
+                          colSpan="6"
                           className="px-4 py-8 text-center text-slate-500 bg-slate-50/50"
                         >
                           No components added yet. Search above to add.
                         </td>
                       </tr>
                     ) : (
-                      items.map((i, idx) => (
-                        <tr
-                          key={idx}
-                          className="hover:bg-slate-50/50 transition-colors"
-                        >
-                          <td className="px-4 py-3 font-medium text-slate-800">
-                            {i.code}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-medium border border-slate-200">
-                              {i.availableQty}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {i.location}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => removeItem(idx)}
-                              className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                      items.map((i, idx) => {
+                        const exceeds = Number(i.requiredQty) > Number(i.availableQty);
+                        return (
+                          <tr
+                            key={idx}
+                            className="hover:bg-slate-50/50 transition-colors"
+                          >
+                            <td className="px-4 py-3 font-medium text-slate-800 text-left">
+                              {i.code}
+                            </td>
+                            <td className="px-4 py-3 text-left">
+                              <span className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-medium border border-slate-200">
+                                {i.availableQty}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-left">
+                              <div className="flex flex-col gap-1">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={i.requiredQty}
+                                  onChange={(e) => updateItemRequiredQty(idx, e.target.value)}
+                                  className={`w-20 border rounded px-2 py-1 text-xs text-left focus:outline-none focus:ring-1 ${
+                                    exceeds
+                                      ? "border-amber-400 bg-amber-50 text-amber-900 focus:ring-amber-500 font-semibold"
+                                      : "border-slate-300 focus:ring-blue-500"
+                                  }`}
+                                />
+                                {exceeds && (
+                                  <span className="text-[10px] text-amber-700 font-medium flex items-center gap-0.5">
+                                    <AlertCircle size={10} /> Exceeds Available ({i.availableQty})
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-left">
+                              {i.openReelSuggestion ? (
+                                <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-md">
+                                  <span className="font-semibold">Lot: {i.openReelSuggestion.lotnumber}</span>
+                                  <span className="text-[10px] text-emerald-600">{i.openReelSuggestion.qtyremaining} remaining</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400 italic">No open reel</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 text-left">
+                              {i.location}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => removeItem(idx)}
+                                className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -639,25 +723,50 @@ export default function Picklist() {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase text-xs font-semibold">
                     <tr>
-                      <th className="px-4 py-3">Component</th>
-                      <th className="px-4 py-3 text-center">Available Qty</th>
-                      <th className="px-4 py-3 text-center">Used Qty</th>
+                      <th className="px-4 py-3 text-left">Component</th>
+                      <th className="px-4 py-3 text-left">Available Qty</th>
+                      <th className="px-4 py-3 text-left">Required Qty</th>
+                      <th className="px-4 py-3 text-left">Used Qty</th>
+                      <th className="px-4 py-3 text-left">Suggested Reel</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {activePick.items.map((i) => (
-                      <tr key={i.id} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3 font-medium text-slate-800">
-                          {i.componentName}
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-600">
-                          {i.availableQty}
-                        </td>
-                        <td className="px-4 py-3 text-center font-semibold text-blue-600">
-                          {i.usedQty}
-                        </td>
-                      </tr>
-                    ))}
+                    {activePick.items.map((i) => {
+                      const exceeds = Number(i.requiredQty) > Number(i.availableQty);
+                      return (
+                        <tr key={i.id} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-3 font-medium text-slate-800 text-left">
+                            {i.componentName}
+                          </td>
+                          <td className="px-4 py-3 text-left text-slate-600">
+                            {i.availableQty}
+                          </td>
+                          <td className="px-4 py-3 text-left">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-800">{i.requiredQty || "-"}</span>
+                              {exceeds && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded border border-amber-200 flex items-center gap-1">
+                                  <AlertCircle size={10} /> Exceeds Avail
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-left font-semibold text-blue-600">
+                            {i.usedQty}
+                          </td>
+                          <td className="px-4 py-3 text-left">
+                            {i.openReelSuggestion ? (
+                              <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-md">
+                                <span className="font-semibold">Lot: {i.openReelSuggestion.lotnumber}</span>
+                                <span className="text-[10px] text-emerald-600">{i.openReelSuggestion.qtyremaining} remaining</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">No open reel</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -703,33 +812,58 @@ export default function Picklist() {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase text-xs font-semibold">
                     <tr>
-                      <th className="px-4 py-3">Component</th>
-                      <th className="px-4 py-3 text-center">Available</th>
-                      <th className="px-4 py-3 text-center">Used Qty</th>
+                      <th className="px-4 py-3 text-left">Component</th>
+                      <th className="px-4 py-3 text-left">Available</th>
+                      <th className="px-4 py-3 text-left">Required Qty</th>
+                      <th className="px-4 py-3 text-left">Used Qty</th>
+                      <th className="px-4 py-3 text-left">Suggested Reel</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {editItems.map((i, idx) => (
-                      <tr key={i.id} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3 font-medium text-slate-800">
-                          {i.componentName}
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-600">
-                          {i.availableQty}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <input
-                            type="number"
-                            min="0"
-                            max={i.availableQty}
-                            value={i.usedQty}
-                            onChange={(e) => updateUsedQty(idx, e.target.value)}
-                            className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100"
-                            disabled={!canEdit}
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {editItems.map((i, idx) => {
+                      const exceeds = Number(i.requiredQty) > Number(i.availableQty);
+                      return (
+                        <tr key={i.id} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-3 font-medium text-slate-800 text-left">
+                            {i.componentName}
+                          </td>
+                          <td className="px-4 py-3 text-left text-slate-600">
+                            {i.availableQty}
+                          </td>
+                          <td className="px-4 py-3 text-left">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-800">{i.requiredQty || "-"}</span>
+                              {exceeds && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded border border-amber-200">
+                                  ⚠️ Exceeds Avail
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-left">
+                            <input
+                              type="number"
+                              min="0"
+                              max={i.availableQty}
+                              value={i.usedQty}
+                              onChange={(e) => updateUsedQty(idx, e.target.value)}
+                              className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100"
+                              disabled={!canEdit}
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-left">
+                            {i.openReelSuggestion ? (
+                              <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-md">
+                                <span className="font-semibold">Lot: {i.openReelSuggestion.lotnumber}</span>
+                                <span className="text-[10px] text-emerald-600">{i.openReelSuggestion.qtyremaining} remaining</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">No open reel</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

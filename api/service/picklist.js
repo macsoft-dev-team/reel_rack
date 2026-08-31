@@ -6,6 +6,19 @@ const historyService = require("./inventoryhistory");
    CREATE PICK LIST (ADMIN)
  */
 const createPickList = async (data) => {
+  if (data.name) {
+    const existingName = await prisma.pickList.findFirst({
+      where: {
+        name: { equals: data.name.trim() }
+      }
+    });
+    if (existingName) {
+      const err = new Error(`Picklist with name '${data.name}' already exists`);
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
   const picklist = await prisma.pickList.create({
     data: {
       code: data.code,
@@ -18,6 +31,7 @@ const createPickList = async (data) => {
           componentCode: item.componentCode,
           componentName: item.componentName,
           availableQty: item.availableQty,
+          requiredQty: Number(item.requiredQty) || 0,
           usedQty: 0,
           location: item.location,
         })),
@@ -76,23 +90,37 @@ const getPickLists = async (operatorFilter) => {
   });
 
   const openReels = await prisma.reel.findMany({
-    where: { isopen: true },
+    where: { isopen: true, qtyremaining: { gt: 0 } },
     select: { id: true, componentid: true, lotnumber: true, qtyremaining: true, reelstatus: true }
   });
 
-  const openReelMap = {};
-  openReels.forEach(r => {
-    if (!openReelMap[r.componentid]) openReelMap[r.componentid] = [];
-    openReelMap[r.componentid].push(r);
-  });
+  const components = await prisma.component.findMany().catch(() => []);
+  const inventory = await prisma.inventory.findMany().catch(() => []);
+
+  const matchOpenReel = (item) => {
+    const code = (item.componentCode || "").toString().toLowerCase();
+    const name = (item.componentName || "").toString().toLowerCase();
+    const idStr = String(item.componentId || "").toLowerCase();
+
+    const comp = components.find(c => c.id === item.componentId || (c.macsoftPartNo || "").toLowerCase() === code) ||
+                 inventory.find(i => i.id === item.componentId || (i.code || "").toLowerCase() === code);
+
+    const matchKeys = new Set([code, name, idStr]);
+    if (comp) {
+      if (comp.macsoftPartNo) matchKeys.add(comp.macsoftPartNo.toLowerCase());
+      if (comp.code) matchKeys.add(comp.code.toLowerCase());
+      if (comp.name) matchKeys.add(comp.name.toLowerCase());
+    }
+
+    const matched = openReels.filter(r => matchKeys.has((r.componentid || "").toString().toLowerCase()));
+    return matched.length > 0 ? matched[0] : null;
+  };
 
   return picklists.map(pl => ({
     ...pl,
     items: pl.items.map(item => ({
       ...item,
-      openReelSuggestion: openReelMap[item.componentCode] && openReelMap[item.componentCode].length > 0
-        ? openReelMap[item.componentCode][0]
-        : null
+      openReelSuggestion: matchOpenReel(item)
     }))
   }));
 };
@@ -109,23 +137,37 @@ const getPickListById = async (id) => {
   if (!picklist) return null;
 
   const openReels = await prisma.reel.findMany({
-    where: { isopen: true },
+    where: { isopen: true, qtyremaining: { gt: 0 } },
     select: { id: true, componentid: true, lotnumber: true, qtyremaining: true, reelstatus: true }
   });
 
-  const openReelMap = {};
-  openReels.forEach(r => {
-    if (!openReelMap[r.componentid]) openReelMap[r.componentid] = [];
-    openReelMap[r.componentid].push(r);
-  });
+  const components = await prisma.component.findMany().catch(() => []);
+  const inventory = await prisma.inventory.findMany().catch(() => []);
+
+  const matchOpenReel = (item) => {
+    const code = (item.componentCode || "").toString().toLowerCase();
+    const name = (item.componentName || "").toString().toLowerCase();
+    const idStr = String(item.componentId || "").toLowerCase();
+
+    const comp = components.find(c => c.id === item.componentId || (c.macsoftPartNo || "").toLowerCase() === code) ||
+                 inventory.find(i => i.id === item.componentId || (i.code || "").toLowerCase() === code);
+
+    const matchKeys = new Set([code, name, idStr]);
+    if (comp) {
+      if (comp.macsoftPartNo) matchKeys.add(comp.macsoftPartNo.toLowerCase());
+      if (comp.code) matchKeys.add(comp.code.toLowerCase());
+      if (comp.name) matchKeys.add(comp.name.toLowerCase());
+    }
+
+    const matched = openReels.filter(r => matchKeys.has((r.componentid || "").toString().toLowerCase()));
+    return matched.length > 0 ? matched[0] : null;
+  };
 
   return {
     ...picklist,
     items: picklist.items.map(item => ({
       ...item,
-      openReelSuggestion: openReelMap[item.componentCode] && openReelMap[item.componentCode].length > 0
-        ? openReelMap[item.componentCode][0]
-        : null
+      openReelSuggestion: matchOpenReel(item)
     }))
   };
 };
@@ -271,7 +313,10 @@ const executePickList = async (id, items) => {
       include: { items: true },
     });
 
-    const isCompleted = pickList.items.every((i) => i.usedQty === i.availableQty);
+    const isCompleted = pickList.items.every((i) => {
+      const targetQty = i.requiredQty > 0 ? i.requiredQty : i.availableQty;
+      return i.usedQty >= targetQty;
+    });
 
     return tx.pickList.update({
       where: { id: Number(id) },
