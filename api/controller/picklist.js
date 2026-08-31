@@ -69,3 +69,48 @@ exports.deletePickList = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+/* OPERATOR WORKFLOW CONTROLLERS */
+exports.pickItem = async (req, res) => {
+  try {
+    const { picklistId, itemId } = req.params;
+    const { operator, userId } = req.body;
+    const result = await PickListService.pickItem(picklistId, itemId, { operator, userId });
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ message: err.message });
+  }
+};
+
+exports.updateItemQuantity = async (req, res) => {
+  try {
+    const { picklistId, itemId } = req.params;
+    const { usedQty, operator } = req.body;
+    const result = await PickListService.updateItemQuantity(picklistId, itemId, { usedQty, operator });
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ message: err.message });
+  }
+};
+
+exports.returnItem = async (req, res) => {
+  try {
+    const { picklistId, itemId } = req.params;
+    const { operator } = req.body;
+    const result = await PickListService.returnItem(picklistId, itemId, { operator });
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ message: err.message });
+  }
+};
+
+exports.confirmReturnItem = async (req, res) => {
+  try {
+    const { picklistId, itemId } = req.params;
+    const { operator } = req.body;
+    const result = await PickListService.confirmReturnItem(picklistId, itemId, { operator });
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ message: err.message });
+  }
+};

@@ -79,6 +79,7 @@ export default function Picklist() {
   const [suggestions, setSuggestions] = useState([]);
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [addRequiredQty, setAddRequiredQty] = useState(1);
+  const [tempUsedQty, setTempUsedQty] = useState({});
 
   /* FETCH DATA  */
   const fetchPicklists = async () => {
@@ -116,6 +117,78 @@ export default function Picklist() {
     fetchOperators();
     fetchComponents();
   }, []);
+
+  /* OPERATOR WORKFLOW HANDLERS */
+  const handlePickReel = async (picklistId, itemId) => {
+    try {
+      await axiosInstance.post(`/picklist/${picklistId}/items/${itemId}/pick`, {
+        operator: currentUser.name || currentUser.employeeId || "OPERATOR_1",
+        userId: currentUser.id || 1,
+      });
+      toast.success("Rack location identified. Ready to pick Reel from Rack!");
+      fetchPicklists();
+      if (activePick) {
+        const updated = await axiosInstance.get(`/picklist/${picklistId}`);
+        setActivePick(updated.data);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to pick reel");
+    }
+  };
+
+  const handleSaveUsedQty = async (picklistId, itemId, usedQtyVal) => {
+    const qty = Number(usedQtyVal);
+    if (isNaN(qty) || qty < 0) {
+      toast.error("Please enter a valid non-negative used quantity");
+      return;
+    }
+    try {
+      await axiosInstance.patch(`/picklist/${picklistId}/items/${itemId}/quantity`, {
+        usedQty: qty,
+        operator: currentUser.name || currentUser.employeeId || "OPERATOR_1",
+      });
+      toast.success("Used quantity saved. Item is ready for return.");
+      fetchPicklists();
+      if (activePick) {
+        const updated = await axiosInstance.get(`/picklist/${picklistId}`);
+        setActivePick(updated.data);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save used quantity");
+    }
+  };
+
+  const handleReturnReel = async (picklistId, itemId) => {
+    try {
+      await axiosInstance.post(`/picklist/${picklistId}/items/${itemId}/return`, {
+        operator: currentUser.name || currentUser.employeeId || "OPERATOR_1",
+      });
+      toast.success("Return initiated. Please return reel to original rack location.");
+      fetchPicklists();
+      if (activePick) {
+        const updated = await axiosInstance.get(`/picklist/${picklistId}`);
+        setActivePick(updated.data);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to initiate return");
+    }
+  };
+
+  const handleConfirmReturn = async (picklistId, itemId) => {
+    try {
+      await axiosInstance.post(`/picklist/${picklistId}/items/${itemId}/confirm-return`, {
+        operator: currentUser.name || currentUser.employeeId || "OPERATOR_1",
+      });
+      toast.success("Reel return confirmed and item marked COMPLETED!");
+      fetchPicklists();
+      if (activePick) {
+        const updated = await axiosInstance.get(`/picklist/${picklistId}`);
+        setActivePick(updated.data);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to confirm return");
+    }
+  };
 
   /* CREATE  */
   const openCreate = () => {
@@ -807,14 +880,22 @@ export default function Picklist() {
         </div>
       )}
 
-      {/* VIEW MODAL  */}
+      {/* VIEW / OPERATOR WORKFLOW MODAL */}
       {isViewOpen && activePick && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl flex flex-col overflow-hidden">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-xl flex flex-col max-h-[92vh] overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h2 className="text-lg font-semibold text-slate-800">
-                Picklist Details
-              </h2>
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <span>Picklist Details & Execution</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-mono bg-blue-100 text-blue-700 border border-blue-200">
+                    {activePick.code}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Follow step-by-step picking and return procedures below.
+                </p>
+              </div>
               <button
                 onClick={closeAll}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
@@ -823,96 +904,188 @@ export default function Picklist() {
               </button>
             </div>
 
-            <div className="p-6">
-              <div className="mb-4 flex gap-4 text-sm text-slate-600">
-                <div>
-                  <span className="font-semibold text-slate-800">
-                    Operator:
-                  </span>{" "}
-                  {activePick.operator}
+            <div className="p-6 overflow-y-auto space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                <div className="flex gap-4">
+                  <div>
+                    <span className="font-semibold text-slate-500">Picklist Name:</span>{" "}
+                    <strong className="text-slate-800">{activePick.name}</strong>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500">Assigned Operator:</span>{" "}
+                    <strong className="text-slate-800">{activePick.operator}</strong>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-semibold text-slate-800">Status:</span>{" "}
-                  <span
-                    className={`ml-1 px-2 py-0.5 rounded text-xs border ${statusBadge(activePick.status)}`}
-                  >
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-slate-500">Overall Status:</span>
+                  <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${statusBadge(activePick.status)}`}>
                     {activePick.status}
                   </span>
                 </div>
               </div>
 
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase text-xs font-semibold">
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-100 text-slate-700 border-b border-slate-200 uppercase font-extrabold tracking-wider">
                     <tr>
-                      <th className="px-4 py-3 text-left">Component</th>
-                      <th className="px-4 py-3 text-left">Available Qty</th>
-                      <th className="px-4 py-3 text-left">Required Qty</th>
-                      <th className="px-4 py-3 text-left">Used Qty</th>
-                      <th className="px-4 py-3 text-left">Suggested Reel</th>
+                      <th className="px-4 py-3 text-left">Reel / Component</th>
+                      <th className="px-3 py-3 text-center">Req Qty</th>
+                      <th className="px-3 py-3 text-center">Used Qty</th>
+                      <th className="px-4 py-3 text-left">Rack Location (Row / Col)</th>
+                      <th className="px-3 py-3 text-center">Item Status</th>
+                      <th className="px-4 py-3 text-center">Operator Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {activePick.items.map((i) => {
-                      const exceeds = Number(i.requiredQty) > Number(i.availableQty);
+                      const itemLoc = i.pickedLocation || (i.suggestedReels?.[0]?.rackLocation) || (i.openReelSuggestion?.rackLocation) || (i.location !== "Unassigned" ? i.location : null);
+                      const hasLocation = !!itemLoc;
+                      const itemSt = i.status || "PENDING";
+
                       return (
-                        <tr key={i.id} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-3 font-medium text-slate-800 text-left">
-                            {i.componentName || i.componentCode || i.code || i.name || "—"}
-                          </td>
-                          <td className="px-4 py-3 text-left text-slate-600">
-                            {i.availableQty}
-                          </td>
-                          <td className="px-4 py-3 text-left">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-slate-800">{i.requiredQty || "-"}</span>
-                              {exceeds && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded border border-amber-200 flex items-center gap-1">
-                                  <AlertCircle size={10} /> Exceeds Avail
-                                </span>
+                        <tr key={i.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-slate-800 text-left">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-bold text-slate-900">{i.componentName || i.componentCode || "—"}</span>
+                              {i.reelId && (
+                                <span className="text-[10px] text-blue-600 font-mono">Reel: {i.reelId}</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-left font-semibold text-blue-600">
-                            {i.usedQty}
+                          <td className="px-3 py-3 text-center font-extrabold text-slate-700">
+                            {i.requiredQty}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            {itemSt === "PICKED" || itemSt === "IN_USE" || itemSt === "READY_FOR_RETURN" ? (
+                              <input
+                                type="number"
+                                min="0"
+                                max={i.availableQty}
+                                value={tempUsedQty[i.id] !== undefined ? tempUsedQty[i.id] : i.usedQty}
+                                onChange={(e) => setTempUsedQty((prev) => ({ ...prev, [i.id]: e.target.value }))}
+                                className="w-16 border border-slate-300 rounded px-2 py-1 text-center font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none"
+                              />
+                            ) : (
+                              <span className="font-bold text-blue-600">{i.usedQty}</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-left">
-                            {i.suggestedReels && i.suggestedReels.length > 0 ? (
-                              <div className="flex flex-col gap-1.5">
-                                {i.suggestedReels.map((s, sIdx) => (
-                                  <div
-                                    key={sIdx}
-                                    className={`flex flex-col text-xs px-2.5 py-1 rounded border ${
-                                      s.isOpen
-                                        ? "bg-emerald-50 text-emerald-900 border-emerald-300"
-                                        : "bg-blue-50 text-blue-900 border-blue-200"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-1 font-semibold">
-                                      <span>{s.isOpen ? "🔓 Open:" : "📦 Next:"}</span>
-                                      <span>Lot {s.lotnumber || `Reel-${s.id}`} ({s.suggestedTake || s.qtyremaining} needed)</span>
-                                    </div>
-                                    {s.rackLocation && (
-                                      <span className="text-[10px] text-slate-600 font-bold mt-0.5">
-                                        📍 {s.rackLocation}
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : i.openReelSuggestion ? (
-                              <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-900 border border-emerald-300 px-2.5 py-1 rounded-md">
-                                <span className="font-semibold">🔓 Open: Lot {i.openReelSuggestion.lotnumber}</span>
-                                <span className="text-[10px] text-emerald-700">{i.openReelSuggestion.qtyremaining} remaining</span>
-                                {i.openReelSuggestion.rackLocation && (
-                                  <span className="text-[10px] text-slate-700 font-bold mt-0.5">
-                                    📍 {i.openReelSuggestion.rackLocation}
+                            {hasLocation ? (
+                              <div className="flex flex-col text-xs text-slate-700 font-medium">
+                                <span className="font-bold text-slate-800 flex items-center gap-1">
+                                  📍 {itemLoc}
+                                </span>
+                                {itemSt === "PICKED" && (
+                                  <span className="text-[10px] text-emerald-600 font-bold">
+                                    ✓ Rack location identified
+                                  </span>
+                                )}
+                                {itemSt === "RETURN_PENDING" && (
+                                  <span className="text-[10px] text-purple-700 font-bold">
+                                    RETURN TO: {itemLoc}
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-400 italic">No open reel</span>
+                              <span className="text-red-500 font-semibold italic text-[11px]">
+                                Rack location not found for this Reel.
+                              </span>
                             )}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider border ${
+                                itemSt === "COMPLETED"
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                  : itemSt === "RETURN_PENDING"
+                                  ? "bg-purple-100 text-purple-800 border-purple-300"
+                                  : itemSt === "READY_FOR_RETURN"
+                                  ? "bg-blue-100 text-blue-800 border-blue-300"
+                                  : itemSt === "PICKED" || itemSt === "IN_USE"
+                                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                                  : "bg-slate-100 text-slate-700 border-slate-300"
+                              }`}
+                            >
+                              {itemSt === "IN_USE" ? "PICKED / IN USE" : itemSt}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              {/* STEP 1: PENDING -> PICK REEL */}
+                              {itemSt === "PENDING" && (
+                                <button
+                                  onClick={() => handlePickReel(activePick.id, i.id)}
+                                  disabled={!hasLocation}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold text-white transition-all shadow-2xs flex items-center gap-1 cursor-pointer ${
+                                    hasLocation
+                                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                                      : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                                  }`}
+                                  title={hasLocation ? "Pick Reel from Rack" : "Cannot PICK - Rack location not found"}
+                                >
+                                  <span>🚀 PICK REEL</span>
+                                </button>
+                              )}
+
+                              {/* STEP 2: PICKED / IN_USE -> SAVE USED QTY */}
+                              {(itemSt === "PICKED" || itemSt === "IN_USE") && (
+                                <button
+                                  onClick={() =>
+                                    handleSaveUsedQty(
+                                      activePick.id,
+                                      i.id,
+                                      tempUsedQty[i.id] !== undefined ? tempUsedQty[i.id] : i.usedQty
+                                    )
+                                  }
+                                  className="px-3 py-1.5 rounded-lg text-xs font-extrabold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>💾 SAVE USED QTY</span>
+                                </button>
+                              )}
+
+                              {/* STEP 3: READY_FOR_RETURN -> RETURN REEL */}
+                              {itemSt === "READY_FOR_RETURN" && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() =>
+                                      handleSaveUsedQty(
+                                        activePick.id,
+                                        i.id,
+                                        tempUsedQty[i.id] !== undefined ? tempUsedQty[i.id] : i.usedQty
+                                      )
+                                    }
+                                    className="px-2 py-1 rounded text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-all cursor-pointer"
+                                    title="Update Quantity"
+                                  >
+                                    Edit Qty
+                                  </button>
+                                  <button
+                                    onClick={() => handleReturnReel(activePick.id, i.id)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-extrabold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <span>🔄 RETURN REEL</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* STEP 4: RETURN_PENDING -> CONFIRM RETURN (DEV ACK) */}
+                              {itemSt === "RETURN_PENDING" && (
+                                <button
+                                  onClick={() => handleConfirmReturn(activePick.id, i.id)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-extrabold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                                  title="Hardware ACK Simulation"
+                                >
+                                  <span>✅ CONFIRM RETURN (Dev ACK)</span>
+                                </button>
+                              )}
+
+                              {/* STEP 5: COMPLETED */}
+                              {itemSt === "COMPLETED" && (
+                                <span className="text-emerald-700 font-extrabold text-xs flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                                  <CheckCircle2 size={14} /> Completed
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -925,7 +1098,7 @@ export default function Picklist() {
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
               <button
                 onClick={closeAll}
-                className="px-6 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-6 py-2 text-xs font-extrabold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Close
               </button>

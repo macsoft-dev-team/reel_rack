@@ -459,6 +459,289 @@ const deletePickList = async (id, data = {}) => {
   return existingPicklist;
 };
 
+/* 
+   OPERATOR WORKFLOW: PICK REEL ITEM
+ */
+const pickItem = async (picklistId, itemId, options = {}) => {
+  const picklist = await prisma.pickList.findUnique({
+    where: { id: Number(picklistId) },
+    include: { items: true },
+  });
+
+  if (!picklist) {
+    const err = new Error("Pick list not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (options.operator && picklist.operator.toString().toLowerCase() !== options.operator.toString().toLowerCase()) {
+    const err = new Error(`Picklist is assigned to ${picklist.operator}, not operator ${options.operator}`);
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const item = picklist.items.find((i) => i.id === Number(itemId));
+  if (!item) {
+    const err = new Error("Pick list item not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (item.status !== "PENDING") {
+    const err = new Error(`Item is already in status '${item.status}'. Cannot perform PICK.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Find Rack, Row, Column from DB
+  const racks = await prisma.rack.findMany({ include: { cells: true } }).catch(() => []);
+  let foundRack = null, foundRow = null, foundCol = null, foundLoc = null, matchedReelCode = null;
+
+  const code = (item.componentCode || "").toLowerCase();
+  const name = (item.componentName || "").toLowerCase();
+  const idStr = String(item.componentId || "").toLowerCase();
+
+  for (const r of racks) {
+    for (const c of r.cells || []) {
+      if (c.reelCode) {
+        const rc = c.reelCode.toString().toLowerCase();
+        if (rc === code || rc === name || rc === idStr || rc.includes(code) || code.includes(rc)) {
+          foundRack = r.rackCode;
+          foundRow = c.rowNo;
+          foundCol = c.colNo;
+          foundLoc = `Rack ${r.rackCode} · Row ${c.rowNo} · Col C${c.colNo}`;
+          matchedReelCode = c.reelCode;
+          break;
+        }
+      }
+    }
+    if (foundLoc) break;
+  }
+
+  if (!foundLoc) {
+    const err = new Error("Rack location not found for this Reel. Cannot perform PICK.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // TODO: Integrate MQTT PICK command here
+  // TODO: Wait for hardware PICK ACK
+
+  const updatedItem = await prisma.pickListItem.update({
+    where: { id: Number(itemId) },
+    data: {
+      status: "PICKED",
+      reelId: matchedReelCode,
+      pickedRack: foundRack,
+      pickedRow: foundRow,
+      pickedCol: foundCol,
+      pickedLocation: foundLoc,
+      pickedAt: new Date(),
+    },
+  });
+
+  if (picklist.status === "CREATED") {
+    await prisma.pickList.update({
+      where: { id: Number(picklistId) },
+      data: { status: "IN_PROGRESS" },
+    });
+  }
+
+  return updatedItem;
+};
+
+/* 
+   OPERATOR WORKFLOW: UPDATE USED QUANTITY
+ */
+const updateItemQuantity = async (picklistId, itemId, data = {}) => {
+  const picklist = await prisma.pickList.findUnique({
+    where: { id: Number(picklistId) },
+    include: { items: true },
+  });
+
+  if (!picklist) {
+    const err = new Error("Pick list not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (data.operator && picklist.operator.toString().toLowerCase() !== data.operator.toString().toLowerCase()) {
+    const err = new Error(`Picklist is assigned to ${picklist.operator}`);
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const item = picklist.items.find((i) => i.id === Number(itemId));
+  if (!item) {
+    const err = new Error("Pick list item not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (item.status !== "PICKED" && item.status !== "IN_USE" && item.status !== "READY_FOR_RETURN") {
+    const err = new Error(`Item status is '${item.status}'. Must be PICKED or IN_USE to save used quantity.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const usedQtyNum = Number(data.usedQty);
+  if (isNaN(usedQtyNum) || usedQtyNum < 0) {
+    const err = new Error("Used quantity must be a non-negative number");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const updatedItem = await prisma.pickListItem.update({
+    where: { id: Number(itemId) },
+    data: {
+      usedQty: usedQtyNum,
+      status: "READY_FOR_RETURN",
+    },
+  });
+
+  return updatedItem;
+};
+
+/* 
+   OPERATOR WORKFLOW: RETURN REEL
+ */
+const returnItem = async (picklistId, itemId, options = {}) => {
+  const picklist = await prisma.pickList.findUnique({
+    where: { id: Number(picklistId) },
+    include: { items: true },
+  });
+
+  if (!picklist) {
+    const err = new Error("Pick list not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (options.operator && picklist.operator.toString().toLowerCase() !== options.operator.toString().toLowerCase()) {
+    const err = new Error(`Picklist is assigned to ${picklist.operator}`);
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const item = picklist.items.find((i) => i.id === Number(itemId));
+  if (!item) {
+    const err = new Error("Pick list item not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (item.status !== "READY_FOR_RETURN") {
+    const err = new Error(`Item status is '${item.status}'. Save used quantity before clicking return.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!item.pickedLocation) {
+    const err = new Error("Original pick location not found for this Reel.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // TODO: Integrate MQTT RETURN command here
+  // TODO: Wait for hardware RETURN ACK
+
+  const updatedItem = await prisma.pickListItem.update({
+    where: { id: Number(itemId) },
+    data: {
+      status: "RETURN_PENDING",
+    },
+  });
+
+  return updatedItem;
+};
+
+/* 
+   OPERATOR WORKFLOW: CONFIRM RETURN (DEV ACK SIMULATION)
+ */
+const confirmReturnItem = async (picklistId, itemId, options = {}) => {
+  const picklist = await prisma.pickList.findUnique({
+    where: { id: Number(picklistId) },
+    include: { items: true },
+  });
+
+  if (!picklist) {
+    const err = new Error("Pick list not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (options.operator && picklist.operator.toString().toLowerCase() !== options.operator.toString().toLowerCase()) {
+    const err = new Error(`Picklist is assigned to ${picklist.operator}`);
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const item = picklist.items.find((i) => i.id === Number(itemId));
+  if (!item) {
+    const err = new Error("Pick list item not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (item.status !== "RETURN_PENDING") {
+    const err = new Error(`Item status is '${item.status}'. Must be RETURN_PENDING to confirm return.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const updatedItem = await prisma.pickListItem.update({
+    where: { id: Number(itemId) },
+    data: {
+      status: "COMPLETED",
+      returnedAt: new Date(),
+      completedAt: new Date(),
+    },
+  });
+
+  // Deduct usedQty from Reel stock if matching reel exists
+  try {
+    if (item.reelId) {
+      const reel = await prisma.reel.findFirst({
+        where: {
+          OR: [
+            { lotnumber: item.reelId },
+            { componentid: item.reelId }
+          ]
+        }
+      });
+      if (reel) {
+        await prisma.reel.update({
+          where: { id: reel.id },
+          data: { qtyremaining: Math.max(0, reel.qtyremaining - item.usedQty) }
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to update reel stock on completion:", err.message);
+  }
+
+  // Check if ALL items in picklist are COMPLETED
+  const updatedPicklist = await prisma.pickList.findUnique({
+    where: { id: Number(picklistId) },
+    include: { items: true },
+  });
+
+  const allCompleted = updatedPicklist.items.every((i) => i.status === "COMPLETED");
+  if (allCompleted) {
+    await prisma.pickList.update({
+      where: { id: Number(picklistId) },
+      data: { status: "COMPLETED" },
+    });
+  } else {
+    await prisma.pickList.update({
+      where: { id: Number(picklistId) },
+      data: { status: "IN_PROGRESS" },
+    });
+  }
+
+  return updatedItem;
+};
+
 module.exports = {
   createPickList,
   getPickLists,
@@ -466,4 +749,8 @@ module.exports = {
   updatePickList,
   executePickList,
   deletePickList,
+  pickItem,
+  updateItemQuantity,
+  returnItem,
+  confirmReturnItem,
 };

@@ -546,19 +546,19 @@ export default function Racks() {
                                 onMouseEnter={() => setHoveredCell(cell)}
                                 onMouseLeave={() => setHoveredCell(null)}
                                 className={`
-                                  w-[48px] h-[44px] flex-shrink-0 rounded-xl border flex flex-col justify-between p-1.5 transition-all duration-150 cursor-pointer relative ${cellBg}
+                                  w-[54px] h-[44px] flex-shrink-0 rounded-xl border flex flex-col justify-between p-1 transition-all duration-150 cursor-pointer relative ${cellBg}
                                 `}
                               >
                                 {/* MICRO-LED STATUS INDICATOR */}
                                 <span className={`w-2.5 h-1 rounded-xs transition-all ${ledColor}`} />
 
                                 {/* CELL LABEL / REEL CODE */}
-                                <span className="text-[11px] font-extrabold text-center leading-tight truncate px-0.5 flex items-center justify-center gap-0.5">
+                                <span className="text-[9px] font-extrabold tracking-tighter text-center leading-tight truncate px-0.5 flex items-center justify-center gap-0.5 w-full">
                                   {isOccupied ? (
                                     <>
-                                      {isOpenReel && <span title="Open Reel">🔓</span>}
-                                      {isEmptyReel && <span title="0 Qty Empty Reel">⚠️</span>}
-                                      <span>{cell.reelCode}</span>
+                                      {isOpenReel && <span className="text-[8px]" title="Open Reel">🔓</span>}
+                                      {isEmptyReel && <span className="text-[8px]" title="0 Qty Empty Reel">⚠️</span>}
+                                      <span className="truncate">{cell.reelCode}</span>
                                     </>
                                   ) : (
                                     `C${cell.colNo}`

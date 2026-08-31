@@ -132,6 +132,26 @@ model PickListItem {
   requiredQty  Int    @default(0)
   usedQty      Int    @default(0)
   location     String
+
+  status         PickItemStatus @default(PENDING)
+  reelId         String?
+  pickedRack     String?
+  pickedRow      Int?
+  pickedCol      Int?
+  pickedLocation String?
+  pickedAt       DateTime?
+  returnedAt     DateTime?
+  completedAt    DateTime?
+}
+
+enum PickItemStatus {
+  PENDING
+  PICKED
+  IN_USE
+  READY_FOR_RETURN
+  RETURN_PENDING
+  RETURNED
+  COMPLETED
 }
 
 model Manufacturer {
