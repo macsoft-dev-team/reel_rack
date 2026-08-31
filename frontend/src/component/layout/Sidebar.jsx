@@ -59,41 +59,58 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, mobileOpen, set
       >
         <div className="flex flex-col h-full overflow-y-auto px-3 py-4">
           {/* HEADER / BRANDING */}
-          <div className="flex items-center justify-between mb-6 px-2 pt-2">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <img
-                src={logo}
-                alt="Logo"
-                className="w-9 h-9 rounded-xl border border-slate-200 shadow-xs object-cover flex-shrink-0"
-              />
-              {!isCollapsed && (
-                <div className="truncate">
-                  <h1 className="text-base font-extrabold text-slate-900 tracking-tight leading-tight">
-                    MACSOFT
-                  </h1>
-                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                    Rack Management
-                  </p>
+          <div className="mb-6 px-1 pt-2">
+            {isCollapsed ? (
+              <div className="flex flex-col items-center gap-3 w-full">
+                <img
+                  src={logo}
+                  alt="Logo"
+                  className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] rounded-xl border border-slate-200 shadow-xs object-cover flex-shrink-0"
+                />
+                <button
+                  onClick={onToggleCollapse}
+                  title="Expand Sidebar"
+                  className="hidden lg:flex p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <PanelLeft size={18} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <img
+                    src={logo}
+                    alt="Logo"
+                    className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] rounded-xl border border-slate-200 shadow-xs object-cover flex-shrink-0"
+                  />
+                  <div className="truncate">
+                    <h1 className="text-base font-extrabold text-slate-900 tracking-tight leading-tight">
+                      MACSOFT
+                    </h1>
+                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                      Rack Management
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Mobile Close Button */}
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="lg:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
-            >
-              <X size={20} />
-            </button>
+                {/* Mobile Close Button */}
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="lg:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                >
+                  <X size={20} />
+                </button>
 
-            {/* Desktop Collapse Toggle */}
-            <button
-              onClick={onToggleCollapse}
-              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              className="hidden lg:flex p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-            >
-              {isCollapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
-            </button>
+                {/* Desktop Collapse Toggle */}
+                <button
+                  onClick={onToggleCollapse}
+                  title="Collapse Sidebar"
+                  className="hidden lg:flex p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <PanelLeftClose size={18} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* NAVIGATION ITEMS */}

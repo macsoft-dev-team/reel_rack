@@ -146,6 +146,7 @@ export default function Racks() {
 
     const query = val.toLowerCase().trim();
 
+    // SUGGEST ONLY REELS REGISTERED IN THE REEL PAGE MASTER
     const reelMatches = allReels
       .filter((r) => {
         const lot = (r.lotnumber || "").toLowerCase();
@@ -162,28 +163,30 @@ export default function Racks() {
         isopen: r.isopen || r.reelstatus === "OPEN",
       }));
 
-    const compMatches = allComponents
-      .filter((c) => {
-        const code = (c.code || "").toLowerCase();
-        const name = (c.name || "").toLowerCase();
-        return code.includes(query) || name.includes(query);
-      })
-      .map((c) => ({
-        type: "component",
-        id: c.id,
-        code: c.code,
-        name: c.name,
-        quantity: c.quantity,
-        hasOpenReel: c.hasOpenReel,
-      }));
-
-    setReelSuggestions([...reelMatches, ...compMatches]);
+    setReelSuggestions(reelMatches);
   };
 
   const submit = async () => {
     setLoading(true);
     try {
       const { rack, cell } = active;
+
+      if (mode === "IN") {
+        const trimmedId = reelId.trim().toLowerCase();
+        const existingReel = allReels.find(
+          (r) =>
+            (r.lotnumber && r.lotnumber.toString().toLowerCase() === trimmedId) ||
+            (r.componentid && r.componentid.toString().toLowerCase() === trimmedId)
+        );
+
+        if (!existingReel) {
+          toast.error(
+            `Reel '${reelId}' is not found in the Reel Master (Reel Page). Only registered reels can be stored in the rack.`,
+          );
+          setLoading(false);
+          return;
+        }
+      }
 
       await axios.post(`${API}/history`, {
         reelCode: mode === "IN" ? reelId : cell.reelCode,
