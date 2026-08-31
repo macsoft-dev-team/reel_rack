@@ -89,15 +89,29 @@ const getPickLists = async (operatorFilter) => {
     },
   });
 
-  const openReels = await prisma.reel.findMany({
-    where: { isopen: true, qtyremaining: { gt: 0 } },
-    select: { id: true, componentid: true, lotnumber: true, qtyremaining: true, reelstatus: true }
+  const allReels = await prisma.reel.findMany({
+    where: { qtyremaining: { gt: 0 } },
+    select: { id: true, componentid: true, lotnumber: true, qtyremaining: true, reelstatus: true, isopen: true }
+  });
+
+  const racks = await prisma.rack.findMany({
+    include: { cells: true }
+  }).catch(() => []);
+
+  const reelLocationMap = {};
+  racks.forEach(r => {
+    (r.cells || []).forEach(c => {
+      if (c.reelCode) {
+        const loc = `Rack ${r.rackCode} · Row ${c.rowNo} · Col C${c.colNo} (Slot R${c.rowNo}-C${c.colNo})`;
+        reelLocationMap[c.reelCode.toString().toLowerCase()] = loc;
+      }
+    });
   });
 
   const components = await prisma.component.findMany().catch(() => []);
   const inventory = await prisma.inventory.findMany().catch(() => []);
 
-  const matchOpenReel = (item) => {
+  const matchReelsForItem = (item) => {
     const code = (item.componentCode || "").toString().toLowerCase();
     const name = (item.componentName || "").toString().toLowerCase();
     const idStr = String(item.componentId || "").toLowerCase();
@@ -112,16 +126,50 @@ const getPickLists = async (operatorFilter) => {
       if (comp.name) matchKeys.add(comp.name.toLowerCase());
     }
 
-    const matched = openReels.filter(r => matchKeys.has((r.componentid || "").toString().toLowerCase()));
-    return matched.length > 0 ? matched[0] : null;
+    const itemReels = allReels.filter(r => matchKeys.has((r.componentid || "").toString().toLowerCase()));
+    const openReels = itemReels.filter(r => r.isopen || r.reelstatus === "OPEN");
+    const unopenedReels = itemReels.filter(r => !r.isopen && r.reelstatus !== "OPEN");
+
+    const suggested = [];
+    let needed = item.requiredQty || 1;
+
+    for (const r of openReels) {
+      if (needed <= 0) break;
+      const take = Math.min(r.qtyremaining, needed);
+      const loc = reelLocationMap[(r.lotnumber || "").toString().toLowerCase()] || reelLocationMap[(r.componentid || "").toString().toLowerCase()] || null;
+      suggested.push({ ...r, suggestedTake: take, isOpen: true, rackLocation: loc });
+      needed -= take;
+    }
+
+    for (const r of unopenedReels) {
+      if (needed <= 0) break;
+      const take = Math.min(r.qtyremaining, needed);
+      const loc = reelLocationMap[(r.lotnumber || "").toString().toLowerCase()] || reelLocationMap[(r.componentid || "").toString().toLowerCase()] || null;
+      suggested.push({ ...r, suggestedTake: take, isOpen: false, rackLocation: loc });
+      needed -= take;
+    }
+
+    const primaryReel = openReels.length > 0 ? openReels[0] : (itemReels.length > 0 ? itemReels[0] : null);
+    if (primaryReel) {
+      primaryReel.rackLocation = reelLocationMap[(primaryReel.lotnumber || "").toString().toLowerCase()] || reelLocationMap[(primaryReel.componentid || "").toString().toLowerCase()] || null;
+    }
+
+    return {
+      openReelSuggestion: primaryReel,
+      suggestedReels: suggested,
+    };
   };
 
   return picklists.map(pl => ({
     ...pl,
-    items: pl.items.map(item => ({
-      ...item,
-      openReelSuggestion: matchOpenReel(item)
-    }))
+    items: pl.items.map(item => {
+      const reelMatch = matchReelsForItem(item);
+      return {
+        ...item,
+        openReelSuggestion: reelMatch.openReelSuggestion,
+        suggestedReels: reelMatch.suggestedReels,
+      };
+    })
   }));
 };
 
@@ -136,15 +184,29 @@ const getPickListById = async (id) => {
 
   if (!picklist) return null;
 
-  const openReels = await prisma.reel.findMany({
-    where: { isopen: true, qtyremaining: { gt: 0 } },
-    select: { id: true, componentid: true, lotnumber: true, qtyremaining: true, reelstatus: true }
+  const allReels = await prisma.reel.findMany({
+    where: { qtyremaining: { gt: 0 } },
+    select: { id: true, componentid: true, lotnumber: true, qtyremaining: true, reelstatus: true, isopen: true }
+  });
+
+  const racks = await prisma.rack.findMany({
+    include: { cells: true }
+  }).catch(() => []);
+
+  const reelLocationMap = {};
+  racks.forEach(r => {
+    (r.cells || []).forEach(c => {
+      if (c.reelCode) {
+        const loc = `Rack ${r.rackCode} · Row ${c.rowNo} · Col C${c.colNo} (Slot R${c.rowNo}-C${c.colNo})`;
+        reelLocationMap[c.reelCode.toString().toLowerCase()] = loc;
+      }
+    });
   });
 
   const components = await prisma.component.findMany().catch(() => []);
   const inventory = await prisma.inventory.findMany().catch(() => []);
 
-  const matchOpenReel = (item) => {
+  const matchReelsForItem = (item) => {
     const code = (item.componentCode || "").toString().toLowerCase();
     const name = (item.componentName || "").toString().toLowerCase();
     const idStr = String(item.componentId || "").toLowerCase();
@@ -159,16 +221,50 @@ const getPickListById = async (id) => {
       if (comp.name) matchKeys.add(comp.name.toLowerCase());
     }
 
-    const matched = openReels.filter(r => matchKeys.has((r.componentid || "").toString().toLowerCase()));
-    return matched.length > 0 ? matched[0] : null;
+    const itemReels = allReels.filter(r => matchKeys.has((r.componentid || "").toString().toLowerCase()));
+    const openReels = itemReels.filter(r => r.isopen || r.reelstatus === "OPEN");
+    const unopenedReels = itemReels.filter(r => !r.isopen && r.reelstatus !== "OPEN");
+
+    const suggested = [];
+    let needed = item.requiredQty || 1;
+
+    for (const r of openReels) {
+      if (needed <= 0) break;
+      const take = Math.min(r.qtyremaining, needed);
+      const loc = reelLocationMap[(r.lotnumber || "").toString().toLowerCase()] || reelLocationMap[(r.componentid || "").toString().toLowerCase()] || null;
+      suggested.push({ ...r, suggestedTake: take, isOpen: true, rackLocation: loc });
+      needed -= take;
+    }
+
+    for (const r of unopenedReels) {
+      if (needed <= 0) break;
+      const take = Math.min(r.qtyremaining, needed);
+      const loc = reelLocationMap[(r.lotnumber || "").toString().toLowerCase()] || reelLocationMap[(r.componentid || "").toString().toLowerCase()] || null;
+      suggested.push({ ...r, suggestedTake: take, isOpen: false, rackLocation: loc });
+      needed -= take;
+    }
+
+    const primaryReel = openReels.length > 0 ? openReels[0] : (itemReels.length > 0 ? itemReels[0] : null);
+    if (primaryReel) {
+      primaryReel.rackLocation = reelLocationMap[(primaryReel.lotnumber || "").toString().toLowerCase()] || reelLocationMap[(primaryReel.componentid || "").toString().toLowerCase()] || null;
+    }
+
+    return {
+      openReelSuggestion: primaryReel,
+      suggestedReels: suggested,
+    };
   };
 
   return {
     ...picklist,
-    items: picklist.items.map(item => ({
-      ...item,
-      openReelSuggestion: matchOpenReel(item)
-    }))
+    items: picklist.items.map(item => {
+      const reelMatch = matchReelsForItem(item);
+      return {
+        ...item,
+        openReelSuggestion: reelMatch.openReelSuggestion,
+        suggestedReels: reelMatch.suggestedReels,
+      };
+    })
   };
 };
 

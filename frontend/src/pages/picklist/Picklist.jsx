@@ -67,6 +67,7 @@ export default function Picklist() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [activePick, setActivePick] = useState(null);
 
@@ -77,6 +78,7 @@ export default function Picklist() {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [selectedComponent, setSelectedComponent] = useState(null);
+  const [addRequiredQty, setAddRequiredQty] = useState(1);
 
   /* FETCH DATA  */
   const fetchPicklists = async () => {
@@ -121,6 +123,7 @@ export default function Picklist() {
     setItems([]);
     setSearch("");
     setSuggestions([]);
+    setAddRequiredQty(1);
     setIsCreateOpen(true);
   };
 
@@ -221,17 +224,46 @@ export default function Picklist() {
     }
   };
 
+  /* DELETE  */
+  const deletePicklist = (row) => {
+    setDeleteTarget(row);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const user = sessionStorage.getItem("user");
+      let performedByUserId;
+      try {
+        performedByUserId = user ? JSON.parse(user).id : undefined;
+      } catch (e) {}
+
+      await axiosInstance.delete(`${API_URL}/${deleteTarget.id}`, {
+        params: { performedByUserId },
+      });
+
+      toast.success("Picklist deleted successfully");
+      setDeleteTarget(null);
+      await fetchPicklists();
+    } catch (err) {
+      console.error("Delete failed:", err);
+      toast.error(err.response?.data?.message || "Failed to delete picklist");
+    }
+  };
+
   /* EDIT  */
   const openEdit = (row) => {
     setActivePick(row);
     setEditItems(
       row.items.map((i) => ({
         id: i.id,
-        componentName: i.componentName,
+        componentName: i.componentName || i.componentCode || i.code || i.name || "—",
+        componentCode: i.componentCode || i.code || "",
         availableQty: i.availableQty,
         requiredQty: i.requiredQty || 0,
         usedQty: i.usedQty,
         openReelSuggestion: i.openReelSuggestion,
+        suggestedReels: i.suggestedReels,
       })),
     );
     setIsEditOpen(true);
@@ -299,20 +331,43 @@ export default function Picklist() {
   /* COMPONENT SEARCH  */
   const isOpenedReel = (c) => {
     if (c.hasOpenReel === true) return true;
-    if (typeof c.quantity === "number" && typeof c.minStock === "number") {
-      return c.quantity < c.minStock;
-    }
-    const status = (c.status || c.condition || c.state || "")
-      .toString()
-      .toUpperCase();
-    if (
-      status.includes("OPEN") ||
-      status.includes("IN_USE") ||
-      status.includes("USED")
-    )
-      return true;
-    if (c.isOpened === true || c.opened === true) return true;
+    if (c.openReels && c.openReels.length > 0) return true;
+    if (c.reels && c.reels.some((r) => r.isopen || r.reelstatus === "OPEN")) return true;
+    if (c.suggestedReel && (c.suggestedReel.isopen || c.suggestedReel.reelstatus === "OPEN")) return true;
     return false;
+  };
+
+  const computeReelSuggestions = (c, reqQty = 1) => {
+    const openReels = (c.openReels && c.openReels.length > 0)
+      ? c.openReels
+      : (c.reels ? c.reels.filter(r => r.isopen || r.reelstatus === "OPEN") : []);
+    const allReels = c.reels || [];
+    const unopenedReels = allReels.filter(r => !r.isopen && r.reelstatus !== "OPEN");
+
+    const suggested = [];
+    let needed = Number(reqQty) || 1;
+
+    for (const r of openReels) {
+      if (needed <= 0) break;
+      const rem = Number(r.qtyremaining) || 0;
+      if (rem > 0) {
+        const take = Math.min(rem, needed);
+        suggested.push({ ...r, suggestedTake: take, isOpen: true });
+        needed -= take;
+      }
+    }
+
+    for (const r of unopenedReels) {
+      if (needed <= 0) break;
+      const rem = Number(r.qtyremaining) || 0;
+      if (rem > 0) {
+        const take = Math.min(rem, needed);
+        suggested.push({ ...r, suggestedTake: take, isOpen: false });
+        needed -= take;
+      }
+    }
+
+    return suggested;
   };
 
   const handleSearch = (val) => {
@@ -349,6 +404,9 @@ export default function Picklist() {
     }
     if (items.some((i) => i.id === selectedComponent.id)) return;
 
+    const reqQty = Math.max(1, Number(addRequiredQty) || 1);
+    const suggestedReels = computeReelSuggestions(selectedComponent, reqQty);
+
     setItems([
       ...items,
       {
@@ -356,17 +414,19 @@ export default function Picklist() {
         code: selectedComponent.code,
         name: selectedComponent.name,
         availableQty: selectedComponent.quantity,
-        requiredQty: 1,
+        requiredQty: reqQty,
         location: selectedComponent.location,
         openReelSuggestion:
           selectedComponent.suggestedReel ||
           (selectedComponent.openReels && selectedComponent.openReels[0]) ||
           null,
+        suggestedReels,
       },
     ]);
 
     setSearch("");
     setSelectedComponent(null);
+    setAddRequiredQty(1);
   };
 
   const updateItemRequiredQty = (idx, val) => {
@@ -385,12 +445,13 @@ export default function Picklist() {
 
   /* TABLE COLUMNS  */
   const columns = [
-    { key: "code", label: "Pick Code" },
-    { key: "name", label: "Name" },
-    { key: "operator", label: "Operator" },
+    { key: "code", label: "Pick Code", align: "left" },
+    { key: "name", label: "Name", align: "left" },
+    { key: "operator", label: "Operator", align: "left" },
     {
       key: "status",
       label: "Status",
+      align: "center",
       render: (row) => (
         <span
           className={`px-2.5 py-1 rounded-md text-xs font-medium border ${statusBadge(row.status)}`}
@@ -402,8 +463,9 @@ export default function Picklist() {
     {
       key: "components",
       label: "Components",
+      align: "center",
       render: (row) => (
-        <span className="inline-flex items-center justify-center bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full text-xs font-medium">
+        <span className="inline-flex items-center justify-center bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full text-xs font-semibold min-w-8">
           {row.items?.length || 0}
         </span>
       ),
@@ -411,13 +473,14 @@ export default function Picklist() {
     {
       key: "actions",
       label: "Action",
+      align: "center",
       render: (row) => (
-        <div className="flex gap-2 justify-center">
+        <div className="flex gap-2 justify-center items-center">
           {canEdit &&
             (row.status === "IN_PROGRESS" || row.status === "COMPLETED") && (
               <button
                 onClick={() => openEdit(row)}
-                className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors cursor-pointer"
                 title={isOperator ? "Update Quantity" : "Edit Picklist"}
               >
                 <Edit size={16} />
@@ -436,11 +499,21 @@ export default function Picklist() {
 
           <button
             onClick={() => openView(row)}
-            className="p-1.5 text-slate-600 bg-slate-50 hover:bg-slate-200 hover:text-slate-900 rounded-md transition-colors"
+            className="p-1.5 text-slate-600 bg-slate-50 hover:bg-slate-200 hover:text-slate-900 rounded-md transition-colors cursor-pointer"
             title="View Details & Start Progress"
           >
             <Eye size={16} />
           </button>
+
+          {canDelete && (
+            <button
+              onClick={() => deletePicklist(row)}
+              className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-800 rounded-md transition-colors cursor-pointer"
+              title="Delete Picklist"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       ),
     },
@@ -515,7 +588,7 @@ export default function Picklist() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Search & Add Components
                 </label>
-                <div className="flex gap-2 relative">
+                <div className="flex flex-col sm:flex-row gap-2 relative">
                   <div className="relative flex-1">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Search size={16} className="text-slate-400" />
@@ -527,51 +600,72 @@ export default function Picklist() {
                       onChange={(e) => handleSearch(e.target.value)}
                     />
                   </div>
+                  <div className="w-full sm:w-32">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Req Qty"
+                      title="Required Quantity"
+                      value={addRequiredQty}
+                      onChange={(e) => setAddRequiredQty(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
+                    />
+                  </div>
                   <button
                     onClick={addItem}
                     disabled={!selectedComponent}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
                   >
                     <Plus size={16} /> Add
                   </button>
 
                   {/* Suggestions Dropdown */}
                   {suggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-24 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
-                      {suggestions.map((c) => (
-                        <div
-                          key={c.id}
-                          onClick={() => selectComponent(c)}
-                          className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex items-start justify-between border-b border-slate-100 last:border-0"
-                        >
-                          <div>
-                            <div className="font-medium text-sm text-slate-800">
-                              {c.code} - {c.name}
-                            </div>
-                            {c.hasOpenReel &&
-                              c.openReels &&
-                              c.openReels.length > 0 && (
-                                <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                                  <AlertCircle
-                                    size={12}
-                                    className="text-amber-500"
-                                  />
-                                  {c.openReels.length} open reel(s) • Qty:{" "}
-                                  {c.openReels.reduce(
-                                    (sum, r) => sum + (r.qtyremaining || 0),
-                                    0,
-                                  )}{" "}
-                                  remaining
-                                </div>
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50 divide-y divide-slate-100">
+                      {suggestions.map((c) => {
+                        const isOpened = isOpenedReel(c);
+                        const computedSugg = computeReelSuggestions(c, addRequiredQty);
+                        return (
+                          <div
+                            key={c.id}
+                            onClick={() => selectComponent(c)}
+                            className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex flex-col gap-1 text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-sm text-slate-800">
+                                {c.code} - {c.name}
+                              </span>
+                              {isOpened && (
+                                <span className="text-[11px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded border border-emerald-300 flex items-center gap-1">
+                                  🔓 Open Reel Available
+                                </span>
                               )}
+                            </div>
+                            <div className="text-xs text-slate-500 flex flex-wrap gap-2 items-center">
+                              <span>Available Qty: <strong className="text-slate-700">{c.quantity}</strong></span>
+                              <span>• Req Qty: <strong className="text-blue-600">{addRequiredQty}</strong></span>
+                            </div>
+
+                            {/* Multi-Reel Suggestion Preview */}
+                            {computedSugg.length > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {computedSugg.map((s, sIdx) => (
+                                  <span
+                                    key={sIdx}
+                                    className={`text-[10px] px-2 py-0.5 rounded font-medium border ${
+                                      s.isOpen
+                                        ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                        : "bg-blue-50 text-blue-800 border-blue-200"
+                                    }`}
+                                  >
+                                    {s.isOpen ? "🔓 Open Reel:" : "📦 Next Reel:"} Lot {s.lotnumber || `Reel-${s.id}`} ({s.suggestedTake || s.qtyremaining} needed)
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          {isOpenedReel(c) && (
-                            <span className="text-xs font-medium px-2 py-0.5 bg-amber-100 text-amber-700 rounded border border-amber-200">
-                              🔓 Open
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -637,10 +731,38 @@ export default function Picklist() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-left">
-                              {i.openReelSuggestion ? (
-                                <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-md">
-                                  <span className="font-semibold">Lot: {i.openReelSuggestion.lotnumber}</span>
-                                  <span className="text-[10px] text-emerald-600">{i.openReelSuggestion.qtyremaining} remaining</span>
+                              {i.suggestedReels && i.suggestedReels.length > 0 ? (
+                                <div className="flex flex-col gap-1.5">
+                                  {i.suggestedReels.map((s, sIdx) => (
+                                    <div
+                                      key={sIdx}
+                                      className={`flex flex-col text-xs px-2.5 py-1 rounded border ${
+                                        s.isOpen
+                                          ? "bg-emerald-50 text-emerald-900 border-emerald-300"
+                                          : "bg-blue-50 text-blue-900 border-blue-200"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-1 font-semibold">
+                                        <span>{s.isOpen ? "🔓 Open:" : "📦 Next:"}</span>
+                                        <span>Lot {s.lotnumber || `Reel-${s.id}`} ({s.suggestedTake || s.qtyremaining} needed)</span>
+                                      </div>
+                                      {s.rackLocation && (
+                                        <span className="text-[10px] text-slate-600 font-bold mt-0.5">
+                                          📍 {s.rackLocation}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : i.openReelSuggestion ? (
+                                <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-900 border border-emerald-300 px-2.5 py-1 rounded-md">
+                                  <span className="font-semibold">🔓 Open: Lot {i.openReelSuggestion.lotnumber}</span>
+                                  <span className="text-[10px] text-emerald-700">{i.openReelSuggestion.qtyremaining} remaining</span>
+                                  {i.openReelSuggestion.rackLocation && (
+                                    <span className="text-[10px] text-slate-700 font-bold mt-0.5">
+                                      📍 {i.openReelSuggestion.rackLocation}
+                                    </span>
+                                  )}
                                 </div>
                               ) : (
                                 <span className="text-xs text-slate-400 italic">No open reel</span>
@@ -736,7 +858,7 @@ export default function Picklist() {
                       return (
                         <tr key={i.id} className="hover:bg-slate-50/50">
                           <td className="px-4 py-3 font-medium text-slate-800 text-left">
-                            {i.componentName}
+                            {i.componentName || i.componentCode || i.code || i.name || "—"}
                           </td>
                           <td className="px-4 py-3 text-left text-slate-600">
                             {i.availableQty}
@@ -755,10 +877,38 @@ export default function Picklist() {
                             {i.usedQty}
                           </td>
                           <td className="px-4 py-3 text-left">
-                            {i.openReelSuggestion ? (
-                              <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-md">
-                                <span className="font-semibold">Lot: {i.openReelSuggestion.lotnumber}</span>
-                                <span className="text-[10px] text-emerald-600">{i.openReelSuggestion.qtyremaining} remaining</span>
+                            {i.suggestedReels && i.suggestedReels.length > 0 ? (
+                              <div className="flex flex-col gap-1.5">
+                                {i.suggestedReels.map((s, sIdx) => (
+                                  <div
+                                    key={sIdx}
+                                    className={`flex flex-col text-xs px-2.5 py-1 rounded border ${
+                                      s.isOpen
+                                        ? "bg-emerald-50 text-emerald-900 border-emerald-300"
+                                        : "bg-blue-50 text-blue-900 border-blue-200"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1 font-semibold">
+                                      <span>{s.isOpen ? "🔓 Open:" : "📦 Next:"}</span>
+                                      <span>Lot {s.lotnumber || `Reel-${s.id}`} ({s.suggestedTake || s.qtyremaining} needed)</span>
+                                    </div>
+                                    {s.rackLocation && (
+                                      <span className="text-[10px] text-slate-600 font-bold mt-0.5">
+                                        📍 {s.rackLocation}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : i.openReelSuggestion ? (
+                              <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-900 border border-emerald-300 px-2.5 py-1 rounded-md">
+                                <span className="font-semibold">🔓 Open: Lot {i.openReelSuggestion.lotnumber}</span>
+                                <span className="text-[10px] text-emerald-700">{i.openReelSuggestion.qtyremaining} remaining</span>
+                                {i.openReelSuggestion.rackLocation && (
+                                  <span className="text-[10px] text-slate-700 font-bold mt-0.5">
+                                    📍 {i.openReelSuggestion.rackLocation}
+                                  </span>
+                                )}
                               </div>
                             ) : (
                               <span className="text-xs text-slate-400 italic">No open reel</span>
@@ -825,7 +975,7 @@ export default function Picklist() {
                       return (
                         <tr key={i.id} className="hover:bg-slate-50/50">
                           <td className="px-4 py-3 font-medium text-slate-800 text-left">
-                            {i.componentName}
+                            {i.componentName || i.componentCode || i.code || i.name || "—"}
                           </td>
                           <td className="px-4 py-3 text-left text-slate-600">
                             {i.availableQty}
@@ -852,9 +1002,25 @@ export default function Picklist() {
                             />
                           </td>
                           <td className="px-4 py-3 text-left">
-                            {i.openReelSuggestion ? (
+                            {i.suggestedReels && i.suggestedReels.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {i.suggestedReels.map((s, sIdx) => (
+                                  <div
+                                    key={sIdx}
+                                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${
+                                      s.isOpen
+                                        ? "bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold"
+                                        : "bg-blue-50 text-blue-800 border-blue-200"
+                                    }`}
+                                  >
+                                    <span>{s.isOpen ? "🔓 Open:" : "📦 Next:"}</span>
+                                    <span>Lot {s.lotnumber || `Reel-${s.id}`} ({s.suggestedTake || s.qtyremaining} needed)</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : i.openReelSuggestion ? (
                               <div className="inline-flex flex-col text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-md">
-                                <span className="font-semibold">Lot: {i.openReelSuggestion.lotnumber}</span>
+                                <span className="font-semibold">🔓 Open: Lot {i.openReelSuggestion.lotnumber}</span>
                                 <span className="text-[10px] text-emerald-600">{i.openReelSuggestion.qtyremaining} remaining</span>
                               </div>
                             ) : (
@@ -884,6 +1050,40 @@ export default function Picklist() {
                   {isOperator ? "Save Quantities" : "Save Changes"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4 border border-red-200">
+                <AlertCircle size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Delete Picklist</h3>
+              <p className="text-sm text-slate-600 mb-6">
+                Are you sure you want to delete picklist{" "}
+                <strong className="text-slate-800">'{deleteTarget.name || deleteTarget.code}'</strong>?
+                <br />
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="px-5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-5 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-xs"
+                >
+                  Delete Picklist
+                </button>
+              </div>
             </div>
           </div>
         </div>

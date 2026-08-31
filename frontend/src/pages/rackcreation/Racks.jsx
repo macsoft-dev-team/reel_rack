@@ -34,6 +34,11 @@ export default function Racks() {
   const [loading, setLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
 
+  /* REEL & COMPONENT SUGGESTION STATES */
+  const [allReels, setAllReels] = useState([]);
+  const [allComponents, setAllComponents] = useState([]);
+  const [reelSuggestions, setReelSuggestions] = useState([]);
+
   /* BULK UPLOAD MODAL STATE */
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
@@ -62,8 +67,22 @@ export default function Racks() {
     }
   };
 
+  const loadReelsAndComponents = async () => {
+    try {
+      const [reelsRes, compRes] = await Promise.all([
+        axios.get(`${API}/reel`).catch(() => ({ data: [] })),
+        axios.get(`${API}/inventory`).catch(() => ({ data: [] })),
+      ]);
+      setAllReels(reelsRes.data || []);
+      setAllComponents(compRes.data || []);
+    } catch (err) {
+      console.error("Failed to load reels/components", err);
+    }
+  };
+
   useEffect(() => {
     loadRacks();
+    loadReelsAndComponents();
   }, []);
 
   useEffect(() => {
@@ -84,6 +103,28 @@ export default function Racks() {
   const free = total - occupied;
   const occupancyPct = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
+  const openCount = selectedRack?.cells?.filter((c) => {
+    if (!c.reelCode) return false;
+    const r = allReels.find(
+      (rel) =>
+        (rel.lotnumber && rel.lotnumber.toString().toLowerCase() === c.reelCode.toString().toLowerCase()) ||
+        (rel.componentid && rel.componentid.toString().toLowerCase() === c.reelCode.toString().toLowerCase())
+    );
+    return (r && (r.isopen || r.reelstatus === "OPEN")) || c.reelCode.toLowerCase().includes("open");
+  }).length ?? 0;
+
+  const emptyReelCount = selectedRack?.cells?.filter((c) => {
+    if (!c.reelCode) return false;
+    const r = allReels.find(
+      (rel) =>
+        (rel.lotnumber && rel.lotnumber.toString().toLowerCase() === c.reelCode.toString().toLowerCase()) ||
+        (rel.componentid && rel.componentid.toString().toLowerCase() === c.reelCode.toString().toLowerCase())
+    );
+    return r && Number(r.qtyremaining) === 0;
+  }).length ?? 0;
+
+  const closedCount = Math.max(0, occupied - openCount);
+
   /* ROW NUMBERS */
   const rowNumbers = selectedRack?.cells?.length
     ? [...new Set(selectedRack.cells.map((c) => c.rowNo))].sort((a, b) => a - b)
@@ -93,6 +134,50 @@ export default function Racks() {
     setActive({ rack, cell });
     setMode(cell.reelCode ? "OUT" : "IN");
     setReelId("");
+    setReelSuggestions([]);
+  };
+
+  const handleReelSearch = (val) => {
+    setReelId(val);
+    if (!val.trim()) {
+      setReelSuggestions([]);
+      return;
+    }
+
+    const query = val.toLowerCase().trim();
+
+    const reelMatches = allReels
+      .filter((r) => {
+        const lot = (r.lotnumber || "").toLowerCase();
+        const comp = (r.componentid || "").toLowerCase();
+        return lot.includes(query) || comp.includes(query);
+      })
+      .map((r) => ({
+        type: "reel",
+        id: r.id,
+        code: r.lotnumber || r.componentid,
+        componentid: r.componentid,
+        lotnumber: r.lotnumber,
+        qtyremaining: r.qtyremaining,
+        isopen: r.isopen || r.reelstatus === "OPEN",
+      }));
+
+    const compMatches = allComponents
+      .filter((c) => {
+        const code = (c.code || "").toLowerCase();
+        const name = (c.name || "").toLowerCase();
+        return code.includes(query) || name.includes(query);
+      })
+      .map((c) => ({
+        type: "component",
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        quantity: c.quantity,
+        hasOpenReel: c.hasOpenReel,
+      }));
+
+    setReelSuggestions([...reelMatches, ...compMatches]);
   };
 
   const submit = async () => {
@@ -112,6 +197,7 @@ export default function Racks() {
       );
       await loadRacks();
       setActive(null);
+      setReelSuggestions([]);
     } catch (err) {
       toast.error("Operation failed");
     } finally {
@@ -344,9 +430,9 @@ export default function Racks() {
               <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
 
-            {/* Rack Utilization Bar Readout */}
-            <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200/80 min-w-[280px]">
-              <div className="flex-1">
+            {/* Rack Utilization & Status Legend Readout */}
+            <div className="flex flex-wrap items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200/80 min-w-[280px]">
+              <div className="flex-1 min-w-[200px]">
                 <div className="flex justify-between items-center text-xs font-bold text-slate-700 mb-1">
                   <span>Rack Utilization</span>
                   <span className="text-blue-600">{occupied}/{total} Cells Used - {occupancyPct}%</span>
@@ -357,6 +443,24 @@ export default function Racks() {
                     style={{ width: `${occupancyPct}%` }}
                   />
                 </div>
+              </div>
+
+              {/* Status Legend Bar */}
+              <div className="flex flex-wrap items-center gap-2 text-xs border-l border-slate-200 pl-4 py-0.5">
+                <span className="flex items-center gap-1 font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                  🔓 Open: {openCount}
+                </span>
+                <span className="flex items-center gap-1 font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded border border-slate-300">
+                  📦 Closed: {closedCount}
+                </span>
+                {emptyReelCount > 0 && (
+                  <span className="flex items-center gap-1 font-bold text-red-800 bg-red-100 px-2 py-0.5 rounded border border-red-300">
+                    ⚠️ 0 Qty: {emptyReelCount}
+                  </span>
+                )}
+                <span className="text-slate-500 font-medium px-1">
+                  ⬜ Free: {free}
+                </span>
               </div>
             </div>
           </div>
@@ -388,20 +492,43 @@ export default function Racks() {
                           const isSelected = active?.cell.id === cell.id;
                           const isOccupied = !!cell.reelCode;
 
+                          const reelObj = isOccupied
+                            ? allReels.find(
+                                (r) =>
+                                  (r.lotnumber && r.lotnumber.toString().toLowerCase() === cell.reelCode.toString().toLowerCase()) ||
+                                  (r.componentid && r.componentid.toString().toLowerCase() === cell.reelCode.toString().toLowerCase())
+                              )
+                            : null;
+
+                          const isOpenReel = isOccupied && (
+                            (reelObj && (reelObj.isopen || reelObj.reelstatus === "OPEN")) ||
+                            cell.reelCode.toLowerCase().includes("open")
+                          );
+
+                          const isEmptyReel = isOccupied && reelObj && Number(reelObj.qtyremaining) === 0;
+
                           // Check search filter match
                           const matchesFilter =
                             searchFilter.trim() === "" ||
                             cell.reelCode?.toLowerCase().includes(searchFilter.toLowerCase()) ||
                             `R${cell.rowNo}-C${cell.colNo}`.toLowerCase().includes(searchFilter.toLowerCase());
 
-                          /* CELL STYLING WITH FIXED WIDTH (48px) AND HEIGHT (44px) */
-                          let cellBg = isOccupied
-                            ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-xs"
-                            : "bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-2xs";
+                          /* CELL STYLING */
+                          let cellBg = "bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-2xs";
+                          let ledColor = "bg-slate-300/80";
 
-                          let ledColor = isOccupied
-                            ? "bg-emerald-300 shadow-[0_0_6px_#86efac]"
-                            : "bg-slate-300/80";
+                          if (isOccupied) {
+                            if (isEmptyReel) {
+                              cellBg = "bg-red-600 hover:bg-red-700 text-white border-red-700 shadow-xs";
+                              ledColor = "bg-red-300 shadow-[0_0_8px_#fca5a5]";
+                            } else if (isOpenReel) {
+                              cellBg = "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 ring-2 ring-emerald-400/50 shadow-xs";
+                              ledColor = "bg-emerald-200 shadow-[0_0_8px_#34d399]";
+                            } else {
+                              cellBg = "bg-slate-700 hover:bg-slate-800 text-white border-slate-800 shadow-xs";
+                              ledColor = "bg-blue-300 shadow-[0_0_6px_#93c5fd]";
+                            }
+                          }
 
                           if (isSelected) {
                             cellBg = "bg-blue-600 text-white border-blue-700 ring-4 ring-blue-400/40 scale-105 shadow-md z-10";
@@ -426,24 +553,45 @@ export default function Racks() {
                                 <span className={`w-2.5 h-1 rounded-xs transition-all ${ledColor}`} />
 
                                 {/* CELL LABEL / REEL CODE */}
-                                <span className="text-[11px] font-extrabold text-center leading-tight truncate px-0.5">
-                                  {isOccupied ? cell.reelCode : `C${cell.colNo}`}
+                                <span className="text-[11px] font-extrabold text-center leading-tight truncate px-0.5 flex items-center justify-center gap-0.5">
+                                  {isOccupied ? (
+                                    <>
+                                      {isOpenReel && <span title="Open Reel">🔓</span>}
+                                      {isEmptyReel && <span title="0 Qty Empty Reel">⚠️</span>}
+                                      <span>{cell.reelCode}</span>
+                                    </>
+                                  ) : (
+                                    `C${cell.colNo}`
+                                  )}
                                 </span>
                               </button>
 
                               {/* HOVER TOOLTIP POPOVER */}
-                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-40 w-48 p-3 bg-white border border-slate-200 rounded-xl shadow-2xl text-xs text-slate-800 animate-fade-scale pointer-events-none">
-                                <div className="font-extrabold text-slate-900 border-b border-slate-100 pb-1 mb-1.5 flex justify-between">
+                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-40 w-52 p-3 bg-white border border-slate-200 rounded-xl shadow-2xl text-xs text-slate-800 animate-fade-scale pointer-events-none">
+                                <div className="font-extrabold text-slate-900 border-b border-slate-100 pb-1 mb-1.5 flex justify-between items-center">
                                   <span>Slot R{cell.rowNo}-C{cell.colNo}</span>
-                                  <span className={isOccupied ? "text-emerald-600 font-bold" : "text-slate-400 font-bold"}>
-                                    {isOccupied ? "Occupied" : "Empty"}
+                                  <span className={isEmptyReel ? "text-red-600 font-bold" : isOpenReel ? "text-emerald-600 font-bold flex items-center gap-1" : isOccupied ? "text-blue-600 font-bold" : "text-slate-400 font-bold"}>
+                                    {isEmptyReel ? "⚠️ 0 Qty" : isOpenReel ? "🔓 Open Reel" : isOccupied ? "📦 Closed Reel" : "Empty Slot"}
                                   </span>
                                 </div>
                                 <p className="font-medium text-slate-600">
                                   <strong className="text-slate-800">Reel Code:</strong> {cell.reelCode || "N/A"}
                                 </p>
-                                <p className="font-medium text-slate-600 mt-0.5">
-                                  <strong className="text-slate-800">Location:</strong> R{cell.rowNo} Row, C{cell.colNo} Col
+                                {isOccupied && reelObj && (
+                                  <>
+                                    <p className="font-medium text-slate-600 mt-0.5">
+                                      <strong className="text-slate-800">Component:</strong> {reelObj.componentid}
+                                    </p>
+                                    <p className="font-medium text-slate-600 mt-0.5">
+                                      <strong className="text-slate-800">Qty Remaining:</strong>{" "}
+                                      <strong className={isEmptyReel ? "text-red-600 font-bold" : "text-blue-600 font-bold"}>
+                                        {reelObj.qtyremaining}
+                                      </strong>
+                                    </p>
+                                  </>
+                                )}
+                                <p className="font-medium text-slate-500 text-[10px] mt-1 pt-1 border-t border-slate-100">
+                                  Location: Row R{cell.rowNo}, Col C{cell.colNo}
                                 </p>
                               </div>
                             </div>
@@ -505,7 +653,7 @@ export default function Racks() {
                     </div>
 
                     {mode === "IN" && (
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 relative">
                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                           Scan / Enter Reel Code
                         </label>
@@ -513,10 +661,47 @@ export default function Racks() {
                           autoFocus
                           type="text"
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-medium"
-                          placeholder="e.g. REEL-84729"
+                          placeholder="e.g. REEL-84729 or Component Name..."
                           value={reelId}
-                          onChange={(e) => setReelId(e.target.value)}
+                          onChange={(e) => handleReelSearch(e.target.value)}
                         />
+
+                        {/* REEL / COMPONENT SUGGESTIONS DROPDOWN */}
+                        {reelSuggestions.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 divide-y divide-slate-100">
+                            {reelSuggestions.map((item, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  setReelId(item.lotnumber || item.code);
+                                  setReelSuggestions([]);
+                                }}
+                                className="px-3.5 py-2.5 hover:bg-blue-50 cursor-pointer flex flex-col gap-0.5 text-left"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-xs text-slate-800">
+                                    {item.type === "reel" ? item.lotnumber || item.code : `${item.code} - ${item.name}`}
+                                  </span>
+                                  {item.isopen && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded border border-emerald-300">
+                                      🔓 Open Reel
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                                  {item.type === "reel" ? (
+                                    <>
+                                      <span>Component: <strong className="text-slate-700">{item.componentid}</strong></span>
+                                      <span>• Qty: <strong className="text-blue-600">{item.qtyremaining}</strong></span>
+                                    </>
+                                  ) : (
+                                    <span>Stock Qty: <strong className="text-slate-700">{item.quantity}</strong></span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 

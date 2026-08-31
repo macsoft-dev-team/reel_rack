@@ -3,7 +3,7 @@ const prisma = require("../prisma/client");
 // GET all - with open reel information
 exports.getAllInventory = async () => {
   const inventory = await prisma.inventory.findMany();
-  
+
   // Get all reels
   const allReels = await prisma.reel.findMany({
     select: {
@@ -16,39 +16,16 @@ exports.getAllInventory = async () => {
       reelstatus: true
     }
   });
-  
-  const reelMap = {};
-  const openReelMap = {};
 
-  allReels.forEach(reel => {
-    if (!reelMap[reel.componentid]) {
-      reelMap[reel.componentid] = [];
-    }
-    reelMap[reel.componentid].push({
-      id: reel.id,
-      lotnumber: reel.lotnumber,
-      qtyremaining: reel.qtyremaining,
-      reelstatus: reel.reelstatus,
-      isopen: reel.isopen
-    });
-
-    if (reel.isopen || reel.reelstatus === "OPEN") {
-      if (!openReelMap[reel.componentid]) {
-        openReelMap[reel.componentid] = [];
-      }
-      openReelMap[reel.componentid].push({
-        id: reel.id,
-        lotnumber: reel.lotnumber,
-        qtyremaining: reel.qtyremaining,
-        reelstatus: reel.reelstatus,
-        isopen: reel.isopen
-      });
-    }
-  });
-  
   return inventory.map(item => {
-    const itemReels = reelMap[item.code] || [];
-    const itemOpenReels = openReelMap[item.code] || [];
+    const code = (item.code || "").toString().toLowerCase();
+    const name = (item.name || "").toString().toLowerCase();
+    const idStr = String(item.id || "").toLowerCase();
+
+    const matchKeys = new Set([code, name, idStr]);
+
+    const itemReels = allReels.filter(r => matchKeys.has((r.componentid || "").toString().toLowerCase()));
+    const itemOpenReels = itemReels.filter(r => (r.isopen || r.reelstatus === "OPEN") && r.qtyremaining > 0);
     const suggestedReel = itemOpenReels.length > 0 ? itemOpenReels[0] : (itemReels.length > 0 ? itemReels[0] : null);
 
     return {
@@ -82,7 +59,7 @@ exports.createInventory = async (data) => {
   };
 
   const inventory = await prisma.inventory.create({ data: payload });
-  
+
   // Create transaction log
   try {
     await prisma.inventorytransaction.create({
@@ -95,7 +72,7 @@ exports.createInventory = async (data) => {
   } catch (txErr) {
     console.error("Failed to create transaction log:", txErr.message);
   }
-  
+
   return inventory;
 };
 
@@ -114,7 +91,7 @@ exports.updateInventory = async (id, data) => {
     where: { id: Number(id) },
     data: payload,
   });
-  
+
   // Create transaction log
   try {
     await prisma.inventorytransaction.create({
@@ -127,18 +104,18 @@ exports.updateInventory = async (id, data) => {
   } catch (txErr) {
     console.error("Failed to create transaction log:", txErr.message);
   }
-  
+
   return inventory;
 };
 
 // DELETE
 exports.deleteInventory = async (id) => {
   const existing = await prisma.inventory.findUnique({ where: { id: Number(id) } });
-  
+
   await prisma.inventory.delete({
     where: { id: Number(id) },
   });
-  
+
   // Create transaction log
   try {
     await prisma.inventorytransaction.create({
