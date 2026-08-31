@@ -79,7 +79,7 @@ export default function SignIn() {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-blue-400 font-bold text-xs sm:text-sm tracking-[0.2em] uppercase mt-2 drop-shadow-sm">
+          <p className="text-white font-bold text-lg sm:text-lg tracking-[0.2em] uppercase mt-2 drop-shadow-sm">
             REEL RACK MANAGEMENT SYSTEM
           </p>
         </div>
